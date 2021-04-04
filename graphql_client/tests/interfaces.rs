@@ -2,7 +2,7 @@ use graphql_client::*;
 
 const RESPONSE: &str = include_str!("interfaces/interface_response.json");
 
-#[derive(GraphQLQuery)]
+#[derive(GraphQLRequest)]
 #[graphql(
     query_path = "tests/interfaces/interface_query.graphql",
     schema_path = "tests/interfaces/interface_schema.graphql",
@@ -53,7 +53,7 @@ fn interface_deserialization() {
     assert_eq!(response_data, expected);
 }
 
-#[derive(GraphQLQuery)]
+#[derive(GraphQLRequest)]
 #[graphql(
     query_path = "tests/interfaces/interface_not_on_everything_query.graphql",
     schema_path = "tests/interfaces/interface_schema.graphql",
@@ -107,7 +107,7 @@ fn interface_not_on_everything_deserialization() {
     assert_eq!(response_data.everything.map(|names| names.len()), Some(4));
 }
 
-#[derive(GraphQLQuery)]
+#[derive(GraphQLRequest)]
 #[graphql(
     query_path = "tests/interfaces/interface_with_fragment_query.graphql",
     schema_path = "tests/interfaces/interface_schema.graphql",

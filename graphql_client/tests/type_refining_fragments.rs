@@ -1,6 +1,6 @@
 use graphql_client::*;
 
-#[derive(GraphQLQuery)]
+#[derive(GraphQLRequest)]
 #[graphql(
     query_path = "tests/interfaces/interface_with_type_refining_fragment_query.graphql",
     schema_path = "tests/interfaces/interface_schema.graphql",
@@ -8,7 +8,7 @@ use graphql_client::*;
 )]
 pub struct QueryOnInterface;
 
-#[derive(GraphQLQuery)]
+#[derive(GraphQLRequest)]
 #[graphql(
     query_path = "tests/unions/type_refining_fragment_on_union_query.graphql",
     schema_path = "tests/unions/union_schema.graphql",

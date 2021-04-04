@@ -34,11 +34,11 @@ A typed GraphQL client library for Rust.
 - We now have everything we need to derive Rust types for our query. This is achieved through a procedural macro, as in the following snippet:
 
   ```rust
-  use graphql_client::GraphQLQuery;
+  use graphql_client::GraphQLRequest;
 
   // The paths are relative to the directory where your `Cargo.toml` is located.
   // Both json and the GraphQL schema language are supported as sources for the schema
-  #[derive(GraphQLQuery)]
+  #[derive(GraphQLRequest)]
   #[graphql(
       schema_path = "tests/unions/union_schema.graphql",
       query_path = "tests/unions/union_query.graphql",
@@ -54,14 +54,14 @@ A typed GraphQL client library for Rust.
 
   The module also contains a struct called `Variables` representing the variables expected by the query.
 
-* We now need to create the complete payload that we are going to send to the server. For convenience, the [GraphQLQuery trait](https://docs.rs/graphql_client/latest/graphql_client/trait.GraphQLQuery.html), is implemented for the struct under derive, so a complete query body can be created this way:
+* We now need to create the complete payload that we are going to send to the server. For convenience, the [GraphQLRequest trait](https://docs.rs/graphql_client/latest/graphql_client/trait.GraphQLRequest.html), is implemented for the struct under derive, so a complete query body can be created this way:
 
   ```rust
-  use graphql_client::{GraphQLQuery, Response};
+  use graphql_client::{GraphQLRequest, Response};
   use std::error::Error;
   use reqwest;
 
-  #[derive(GraphQLQuery)]
+  #[derive(GraphQLRequest)]
   #[graphql(
       schema_path = "tests/unions/union_schema.graphql",
       query_path = "tests/unions/union_query.graphql",
@@ -89,9 +89,9 @@ A typed GraphQL client library for Rust.
 The generated response types always derive `serde::Deserialize` but you may want to print them (`Debug`), compare them (`PartialEq`) or derive any other trait on it. You can achieve this with the `response_derives` option of the `graphql` attribute. Example:
 
 ```rust
-use graphql_client::GraphQLQuery;
+use graphql_client::GraphQLRequest;
 
-#[derive(GraphQLQuery)]
+#[derive(GraphQLRequest)]
 #[graphql(
     schema_path = "tests/unions/union_schema.graphql",
     query_path = "tests/unions/union_query.graphql",
@@ -107,12 +107,12 @@ The generated code will reference the scalar types as defined in the server sche
 ## Deprecations
 
 The generated code has support for [`@deprecated`](http://facebook.github.io/graphql/June2018/#sec-Field-Deprecation)
-field annotations. You can configure how deprecations are handled via the `deprecated` argument in the `GraphQLQuery` derive:
+field annotations. You can configure how deprecations are handled via the `deprecated` argument in the `GraphQLRequest` derive:
 
 ```rust
-use graphql_client::GraphQLQuery;
+use graphql_client::GraphQLRequest;
 
-#[derive(GraphQLQuery)]
+#[derive(GraphQLRequest)]
 #[graphql(
   schema_path = "tests/unions/union_schema.graphql",
   query_path = "tests/unions/union_query.graphql",
@@ -132,14 +132,14 @@ The default is `warn`.
 
 ## Query documents with multiple operations
 
-You can write multiple operations in one query document (one `.graphql` file). You can then select one by naming the struct you `#[derive(GraphQLQuery)]` on with the same name as one of the operations. This is neat, as it allows sharing fragments between operations.
+You can write multiple operations in one query document (one `.graphql` file). You can then select one by naming the struct you `#[derive(GraphQLRequest)]` on with the same name as one of the operations. This is neat, as it allows sharing fragments between operations.
 
 Note that the struct and the operation in the GraphQL file *must* have the same name. We enforce this to make the generated code more predictable.
 
 ```rust
-use graphql_client::GraphQLQuery;
+use graphql_client::GraphQLRequest;
 
-#[derive(GraphQLQuery)]
+#[derive(GraphQLRequest)]
 #[graphql(
     schema_path = "tests/unions/union_schema.graphql",
     query_path = "tests/unions/union_query.graphql",

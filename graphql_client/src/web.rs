@@ -74,7 +74,7 @@ impl Client {
     ///
     // Lint disabled: We can pass by value because it's always an empty struct.
     #[allow(clippy::needless_pass_by_value)]
-    pub async fn call<Q: GraphQLQuery + 'static>(
+    pub async fn call<Q: GraphQLRequest + 'static>(
         &self,
         _query: Q,
         variables: Q::Variables,

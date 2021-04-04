@@ -3,7 +3,7 @@ use graphql_client::*;
 const RESPONSE: &str = include_str!("unions/union_query_response.json");
 const FRAGMENT_AND_MORE_RESPONSE: &str = include_str!("unions/fragment_and_more_response.json");
 
-#[derive(GraphQLQuery)]
+#[derive(GraphQLRequest)]
 #[graphql(
     query_path = "tests/unions/union_query.graphql",
     schema_path = "tests/unions/union_schema.graphql",
@@ -11,7 +11,7 @@ const FRAGMENT_AND_MORE_RESPONSE: &str = include_str!("unions/fragment_and_more_
 )]
 pub struct UnionQuery;
 
-#[derive(GraphQLQuery)]
+#[derive(GraphQLRequest)]
 #[graphql(
     query_path = "tests/unions/union_query.graphql",
     schema_path = "tests/unions/union_schema.graphql",
@@ -19,7 +19,7 @@ pub struct UnionQuery;
 )]
 pub struct FragmentOnUnion;
 
-#[derive(GraphQLQuery)]
+#[derive(GraphQLRequest)]
 #[graphql(
     query_path = "tests/unions/union_query.graphql",
     schema_path = "tests/unions/union_schema.graphql",

@@ -5,7 +5,7 @@ use prettytable::*;
 type Bpchar = String;
 type Timestamptz = String;
 
-#[derive(GraphQLQuery)]
+#[derive(GraphQLRequest)]
 #[graphql(
     schema_path = "examples/schema.graphql",
     query_path = "examples/query_1.graphql",

@@ -1,6 +1,6 @@
 use graphql_client::*;
 
-#[derive(GraphQLQuery)]
+#[derive(GraphQLRequest)]
 #[graphql(
     query_path = "tests/scalar_variables/scalar_variables_query.graphql",
     schema_path = "tests/scalar_variables/scalar_variables_schema.graphql"
@@ -15,7 +15,7 @@ fn scalar_variables_query_variables_struct() {
     };
 }
 
-#[derive(GraphQLQuery)]
+#[derive(GraphQLRequest)]
 #[graphql(
     query_path = "tests/scalar_variables/scalar_variables_query_defaults.graphql",
     schema_path = "tests/scalar_variables/scalar_variables_schema.graphql"

@@ -1,6 +1,6 @@
-use graphql_client::GraphQLQuery;
+use graphql_client::GraphQLRequest;
 
-#[derive(GraphQLQuery)]
+#[derive(GraphQLRequest)]
 #[graphql(
     query_path = "tests/operation_selection/queries.graphql",
     schema_path = "tests/operation_selection/schema.graphql",
@@ -8,7 +8,7 @@ use graphql_client::GraphQLQuery;
 )]
 pub struct Heights;
 
-#[derive(GraphQLQuery)]
+#[derive(GraphQLRequest)]
 #[graphql(
     query_path = "tests/operation_selection/queries.graphql",
     schema_path = "tests/operation_selection/schema.graphql",

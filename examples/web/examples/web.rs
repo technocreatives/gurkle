@@ -1,4 +1,4 @@
-use graphql_client::GraphQLQuery;
+use graphql_client::GraphQLRequest;
 use lazy_static::*;
 use std::cell::RefCell;
 use std::sync::Mutex;
@@ -6,7 +6,7 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::future_to_promise;
 
-#[derive(GraphQLQuery)]
+#[derive(GraphQLRequest)]
 #[graphql(
     schema_path = "schema.json",
     query_path = "examples/puppy_smiles.graphql",

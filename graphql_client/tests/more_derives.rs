@@ -1,6 +1,6 @@
 use graphql_client::*;
 
-#[derive(GraphQLQuery)]
+#[derive(GraphQLRequest)]
 #[graphql(
     schema_path = "tests/more_derives/schema.graphql",
     query_path = "tests/more_derives/query.graphql",

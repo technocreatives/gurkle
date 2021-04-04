@@ -1,14 +1,14 @@
 use graphql_client::*;
 use serde_json::json;
 
-#[derive(GraphQLQuery)]
+#[derive(GraphQLRequest)]
 #[graphql(
     query_path = "tests/fragments/query.graphql",
     schema_path = "tests/fragments/schema.graphql"
 )]
 pub struct FragmentReference;
 
-#[derive(GraphQLQuery)]
+#[derive(GraphQLRequest)]
 #[graphql(
     query_path = "tests/fragments/query.graphql",
     schema_path = "tests/fragments/schema.graphql"
@@ -39,7 +39,7 @@ fn fragments_with_snake_case_name() {
     assert_eq!(valid_fragment_reference.in_fragment.unwrap(), "value");
 }
 
-#[derive(GraphQLQuery)]
+#[derive(GraphQLRequest)]
 #[graphql(
     query_path = "tests/fragments/query.graphql",
     schema_path = "tests/fragments/schema.graphql"

@@ -1,7 +1,7 @@
 use graphql_client::*;
 use serde_json::*;
 
-#[derive(GraphQLQuery)]
+#[derive(GraphQLRequest)]
 #[graphql(
     query_path = "tests/alias/query.graphql",
     schema_path = "tests/alias/schema.graphql"

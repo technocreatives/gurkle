@@ -1,6 +1,6 @@
 //! The top-level documentation resides on the [project README](https://github.com/graphql-rust/graphql-client) at the moment.
 //!
-//! The main interface to this library is the custom derive that generates modules from a GraphQL query and schema. See the docs for the [`GraphQLQuery`] trait for a full example.
+//! The main interface to this library is the custom derive that generates modules from a GraphQL query and schema. See the docs for the [`GraphQLRequest`] trait for a full example.
 
 #![deny(missing_docs)]
 #![warn(rust_2018_idioms)]
@@ -35,7 +35,7 @@ doc_comment::doctest!("../../README.md");
 /// use serde_json::json;
 /// use std::error::Error;
 ///
-/// #[derive(GraphQLQuery)]
+/// #[derive(GraphQLRequest)]
 /// #[graphql(
 ///   query_path = "../graphql_client_codegen/src/tests/star_wars_query.graphql",
 ///   schema_path = "../graphql_client_codegen/src/tests/star_wars_schema.graphql"
@@ -43,7 +43,7 @@ doc_comment::doctest!("../../README.md");
 /// struct StarWarsQuery;
 ///
 /// fn main() -> Result<(), Box<dyn Error>> {
-///     use graphql_client::GraphQLQuery;
+///     use graphql_client::GraphQLRequest;
 ///
 ///     let variables = star_wars_query::Variables {
 ///         episode_for_hero: star_wars_query::Episode::NEWHOPE,
@@ -66,7 +66,7 @@ doc_comment::doctest!("../../README.md");
 ///     Ok(())
 /// }
 /// ```
-pub trait GraphQLQuery {
+pub trait GraphQLRequest {
     /// The shape of the variables expected by the query. This should be a generated struct most of the time.
     type Variables: serde::Serialize;
     /// The top-level shape of the response data (the `data` field in the GraphQL response). In practice this should be generated, since it is hard to write by hand without error.
@@ -76,7 +76,7 @@ pub trait GraphQLQuery {
     fn build_query(variables: Self::Variables) -> QueryBody<Self::Variables>;
 }
 
-/// The form in which queries are sent over HTTP in most implementations. This will be built using the [`GraphQLQuery`] trait normally.
+/// The form in which queries are sent over HTTP in most implementations. This will be built using the [`GraphQLRequest`] trait normally.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct QueryBody<Variables> {
     /// The values for the variables. They must match those declared in the queries. This should be the `Variables` struct from the generated module corresponding to the query.
@@ -126,7 +126,7 @@ impl Display for PathFragment {
 /// ```
 /// # use serde_json::json;
 /// # use serde::Deserialize;
-/// # use graphql_client::GraphQLQuery;
+/// # use graphql_client::GraphQLRequest;
 /// # use std::error::Error;
 /// #
 /// # #[derive(Debug, Deserialize, PartialEq)]
@@ -233,7 +233,7 @@ impl Display for Error {
 /// ```
 /// # use serde_json::json;
 /// # use serde::Deserialize;
-/// # use graphql_client::GraphQLQuery;
+/// # use graphql_client::GraphQLRequest;
 /// # use std::error::Error;
 /// #
 /// # #[derive(Debug, Deserialize, PartialEq)]

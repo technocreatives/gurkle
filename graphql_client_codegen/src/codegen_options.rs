@@ -21,7 +21,7 @@ pub struct GraphQLClientCodegenOptions {
     pub operation_name: Option<String>,
     /// The name of implemention target struct.
     pub struct_name: Option<String>,
-    /// The struct for which we derive GraphQLQuery.
+    /// The struct for which we derive GraphQLRequest.
     struct_ident: Option<Ident>,
     /// Comma-separated list of additional traits we want to derive for variables.
     variables_derives: Option<String>,
@@ -161,12 +161,12 @@ impl GraphQLClientCodegenOptions {
         self.query_file.as_deref()
     }
 
-    /// The identifier to use when referring to the struct implementing GraphQLQuery, if any.
+    /// The identifier to use when referring to the struct implementing GraphQLRequest, if any.
     pub fn set_struct_ident(&mut self, ident: Ident) {
         self.struct_ident = Some(ident);
     }
 
-    /// The identifier to use when referring to the struct implementing GraphQLQuery, if any.
+    /// The identifier to use when referring to the struct implementing GraphQLRequest, if any.
     pub fn struct_ident(&self) -> Option<&proc_macro2::Ident> {
         self.struct_ident.as_ref()
     }

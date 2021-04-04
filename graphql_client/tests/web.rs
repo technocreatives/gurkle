@@ -1,6 +1,6 @@
 #![cfg(target_arch = "wasm32")]
 
-use graphql_client::{web::Client, GraphQLQuery};
+use graphql_client::{web::Client, GraphQLRequest};
 use wasm_bindgen_test::*;
 
 wasm_bindgen_test_configure!(run_in_browser);
@@ -12,7 +12,7 @@ fn build_client() {
     Client::new("/graphql");
 }
 
-#[derive(GraphQLQuery)]
+#[derive(GraphQLRequest)]
 #[graphql(
     schema_path = "tests/countries_schema.json",
     query_path = "tests/Germany.graphql",
@@ -38,7 +38,7 @@ async fn test_germany() {
     assert_eq!(continent_name, "Europe");
 }
 
-#[derive(GraphQLQuery)]
+#[derive(GraphQLRequest)]
 #[graphql(
     schema_path = "tests/countries_schema.json",
     query_path = "tests/Germany.graphql"

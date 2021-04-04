@@ -94,7 +94,7 @@ impl<'a> GeneratedModule<'a> {
                 #impls
             }
 
-            impl graphql_client::GraphQLQuery for #operation_name_ident {
+            impl graphql_client::GraphQLRequest for #operation_name_ident {
                 type Variables = #module_name::Variables;
                 type ResponseData = #module_name::ResponseData;
 

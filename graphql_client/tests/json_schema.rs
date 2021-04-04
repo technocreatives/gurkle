@@ -3,7 +3,7 @@ use serde_json::json;
 
 type Uuid = String;
 
-#[derive(GraphQLQuery)]
+#[derive(GraphQLRequest)]
 #[graphql(
     query_path = "tests/json_schema/query.graphql",
     schema_path = "tests/json_schema/schema_1.json",
@@ -11,7 +11,7 @@ type Uuid = String;
 )]
 pub struct WithSchema1;
 
-#[derive(GraphQLQuery)]
+#[derive(GraphQLRequest)]
 #[graphql(
     query_path = "tests/json_schema/query_2.graphql",
     schema_path = "tests/json_schema/schema_2.json",

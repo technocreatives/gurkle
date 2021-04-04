@@ -1,6 +1,6 @@
 use graphql_client::*;
 
-#[derive(GraphQLQuery)]
+#[derive(GraphQLRequest)]
 #[graphql(
     query_path = "tests/input_object_variables/input_object_variables_query.graphql",
     schema_path = "tests/input_object_variables/input_object_variables_schema.graphql",
@@ -25,7 +25,7 @@ fn input_object_variables_query_variables_struct() {
 // Custom scalars
 type Email = String;
 
-#[derive(GraphQLQuery)]
+#[derive(GraphQLRequest)]
 #[graphql(
     query_path = "tests/input_object_variables/input_object_variables_query_defaults.graphql",
     schema_path = "tests/input_object_variables/input_object_variables_schema.graphql",
@@ -48,7 +48,7 @@ fn input_object_variables_default() {
     assert_eq!(out, expected_default);
 }
 
-#[derive(GraphQLQuery)]
+#[derive(GraphQLRequest)]
 #[graphql(
     query_path = "tests/input_object_variables/input_object_variables_query.graphql",
     schema_path = "tests/input_object_variables/input_object_variables_schema.graphql",
@@ -74,7 +74,7 @@ fn recursive_input_objects_can_be_constructed() {
     };
 }
 
-#[derive(GraphQLQuery)]
+#[derive(GraphQLRequest)]
 #[graphql(
     query_path = "tests/input_object_variables/input_object_variables_query.graphql",
     schema_path = "tests/input_object_variables/input_object_variables_schema.graphql",

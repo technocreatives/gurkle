@@ -6,7 +6,7 @@ use std::net::Ipv4Addr;
 // Important! The NetworkAddress scalar should deserialize to an Ipv4Addr from the Rust std library.
 type NetworkAddress = Ipv4Addr;
 
-#[derive(GraphQLQuery)]
+#[derive(GraphQLRequest)]
 #[graphql(
     query_path = "tests/custom_scalars/query.graphql",
     schema_path = "tests/custom_scalars/schema.graphql"

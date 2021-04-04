@@ -1,10 +1,10 @@
 use anyhow::*;
-use graphql_client::GraphQLQuery;
+use graphql_client::GraphQLRequest;
 use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, CONTENT_TYPE};
 use std::path::PathBuf;
 use std::str::FromStr;
 
-#[derive(GraphQLQuery)]
+#[derive(GraphQLRequest)]
 #[graphql(
     schema_path = "src/graphql/introspection_schema.graphql",
     query_path = "src/graphql/introspection_query.graphql",

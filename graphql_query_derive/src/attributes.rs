@@ -99,7 +99,7 @@ mod test {
     #[test]
     fn test_deprecation_strategy() {
         let input = "
-        #[derive(GraphQLQuery)]
+        #[derive(GraphQLRequest)]
         #[graphql(
             schema_path = \"x\",
             query_path = \"x\",
@@ -117,7 +117,7 @@ mod test {
     #[test]
     fn test_deprecation_strategy_is_case_insensitive() {
         let input = "
-        #[derive(GraphQLQuery)]
+        #[derive(GraphQLRequest)]
         #[graphql(
             schema_path = \"x\",
             query_path = \"x\",
@@ -135,7 +135,7 @@ mod test {
     #[test]
     fn test_invalid_deprecation_strategy() {
         let input = "
-        #[derive(GraphQLQuery)]
+        #[derive(GraphQLRequest)]
         #[graphql(
             schema_path = \"x\",
             query_path = \"x\",

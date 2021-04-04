@@ -141,7 +141,7 @@ pub fn generate_module_token_stream(
 enum ReadFileError {
     #[error(
         "Could not find file with path: {}\
-        Hint: file paths in the GraphQLQuery attribute are relative to the project root (location of the Cargo.toml). Example: query_path = \"src/my_query.graphql\".",
+        Hint: file paths in the GraphQLRequest attribute are relative to the project root (location of the Cargo.toml). Example: query_path = \"src/my_query.graphql\".",
         path
     )]
     FileNotFound {

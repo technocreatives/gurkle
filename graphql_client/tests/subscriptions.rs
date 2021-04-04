@@ -4,14 +4,14 @@ const RESPONSE: &str = include_str!("subscription/subscription_query_response.js
 
 // If you uncomment this, it will not compile because the query is not valid. We need to investigate how we can make this a real test.
 //
-// #[derive(GraphQLQuery)]
+// #[derive(GraphQLRequest)]
 // #[graphql(
 //     schema_path = "tests/subscription/subscription_schema.graphql",
 //     query_path = "tests/subscription/subscription_invalid_query.graphql"
 // )]
 // struct SubscriptionInvalidQuery;
 
-#[derive(GraphQLQuery)]
+#[derive(GraphQLRequest)]
 #[graphql(
     schema_path = "tests/subscription/subscription_schema.graphql",
     query_path = "tests/subscription/subscription_query.graphql",

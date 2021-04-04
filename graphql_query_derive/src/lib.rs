@@ -27,7 +27,7 @@ impl Display for GeneralError {
 
 impl std::error::Error for GeneralError {}
 
-#[proc_macro_derive(GraphQLQuery, attributes(graphql))]
+#[proc_macro_derive(GraphQLRequest, attributes(graphql))]
 pub fn derive_graphql_query(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     match graphql_query_derive_inner(input) {
         Ok(ts) => ts,

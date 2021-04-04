@@ -1,6 +1,6 @@
 use graphql_client::*;
 
-#[derive(GraphQLQuery)]
+#[derive(GraphQLRequest)]
 #[graphql(
     schema_path = "tests/deprecation/schema.graphql",
     query_path = "tests/deprecation/query.graphql",
@@ -8,7 +8,7 @@ use graphql_client::*;
 )]
 pub struct AllowDeprecation;
 
-#[derive(GraphQLQuery)]
+#[derive(GraphQLRequest)]
 #[graphql(
     schema_path = "tests/deprecation/schema.graphql",
     query_path = "tests/deprecation/query.graphql",
@@ -16,7 +16,7 @@ pub struct AllowDeprecation;
 )]
 pub struct DenyDeprecation;
 
-#[derive(GraphQLQuery)]
+#[derive(GraphQLRequest)]
 #[graphql(
     schema_path = "tests/deprecation/schema.graphql",
     query_path = "tests/deprecation/query.graphql",

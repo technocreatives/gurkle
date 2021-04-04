@@ -19,7 +19,6 @@ A typed GraphQL client library for Rust.
 - Supports multiple operations per query document.
 - Supports setting GraphQL fields as deprecated and having the Rust compiler check
   their use.
-- [web client](./graphql_client_web) for boilerplate-free API calls from browsers.
 
 ## Getting started
 

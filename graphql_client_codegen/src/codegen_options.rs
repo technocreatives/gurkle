@@ -4,19 +4,8 @@ use proc_macro2::Ident;
 use std::path::{Path, PathBuf};
 use syn::{self, Visibility};
 
-/// Which context is this code generation effort taking place.
-#[derive(Debug)]
-pub enum CodegenMode {
-    /// The graphql-client CLI.
-    Cli,
-    /// The derive macro defined in graphql_query_derive.
-    Derive,
-}
-
 /// Used to configure code generation.
 pub struct GraphQLClientCodegenOptions {
-    /// Which context is this code generation effort taking place.
-    pub mode: CodegenMode,
     /// Name of the operation we want to generate code for. If it does not match, we use all queries.
     pub operation_name: Option<String>,
     /// The name of implemention target struct.
@@ -47,9 +36,8 @@ pub struct GraphQLClientCodegenOptions {
 
 impl GraphQLClientCodegenOptions {
     /// Creates an empty options object with default params. It probably wants to be configured.
-    pub fn new(mode: CodegenMode) -> GraphQLClientCodegenOptions {
+    pub fn new() -> GraphQLClientCodegenOptions {
         GraphQLClientCodegenOptions {
-            mode,
             variables_derives: Default::default(),
             response_derives: Default::default(),
             deprecation_strategy: Default::default(),

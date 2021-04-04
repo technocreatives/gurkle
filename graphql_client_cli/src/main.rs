@@ -5,6 +5,7 @@ use log::Level;
 extern crate rustfmt_nightly as rustfmt;
 
 mod generate;
+pub(crate) mod graphql;
 mod introspect_schema;
 use std::path::PathBuf;
 use structopt::StructOpt;

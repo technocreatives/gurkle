@@ -78,7 +78,7 @@ impl Client {
         &self,
         _query: Q,
         variables: Q::Variables,
-    ) -> Result<crate::Response<Q::ResponseData>, ClientError> {
+    ) -> Result<crate::Response<Q>, ClientError> {
         let window = web_sys::window().ok_or(ClientError::NoWindow)?;
         let body =
             serde_json::to_string(&Q::build_query(variables)).map_err(|_| ClientError::Body)?;

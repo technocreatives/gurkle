@@ -1,7 +1,5 @@
 use anyhow::*;
-use graphql_client_codegen::{
-    generate_module_token_stream, CodegenMode, GraphQLClientCodegenOptions,
-};
+use graphql_client_codegen::{generate_module_token_stream, GraphQLClientCodegenOptions};
 use std::fs::File;
 use std::io::Write as _;
 use std::path::PathBuf;
@@ -36,7 +34,7 @@ pub(crate) fn generate_code(params: CliCodegenParams) -> Result<()> {
 
     let deprecation_strategy = deprecation_strategy.as_ref().and_then(|s| s.parse().ok());
 
-    let mut options = GraphQLClientCodegenOptions::new(CodegenMode::Cli);
+    let mut options = GraphQLClientCodegenOptions::new();
 
     options.set_module_visibility(
         syn::VisPublic {

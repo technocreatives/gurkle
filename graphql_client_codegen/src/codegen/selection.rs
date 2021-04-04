@@ -35,7 +35,7 @@ pub(crate) fn render_response_data_fields<'a>(
     };
 
     let response_data_type_id = expanded_selection.push_type(ExpandedType {
-        name: Cow::Borrowed("ResponseData"),
+        name: Cow::Borrowed(&operation.name),
     });
 
     calculate_selection(

@@ -1,18 +1,8 @@
+use crate::graphql::introspection_query;
 use anyhow::*;
-use graphql_client::GraphQLRequest;
 use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, CONTENT_TYPE};
 use std::path::PathBuf;
 use std::str::FromStr;
-
-#[derive(GraphQLRequest)]
-#[graphql(
-    schema_path = "src/graphql/introspection_schema.graphql",
-    query_path = "src/graphql/introspection_query.graphql",
-    response_derives = "Serialize",
-    variable_derives = "Deserialize"
-)]
-#[allow(dead_code)]
-struct IntrospectionQuery;
 
 pub fn introspect_schema(
     location: &str,

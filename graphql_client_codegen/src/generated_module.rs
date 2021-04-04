@@ -1,5 +1,4 @@
 use crate::{
-    codegen_options::*,
     query::{BoundQuery, OperationId},
     BoxError,
 };
@@ -72,15 +71,7 @@ impl<'a> GeneratedModule<'a> {
         let query_string = &self.query_string;
         let impls = self.build_impls()?;
 
-        let struct_declaration: Option<_> = match self.options.mode {
-            CodegenMode::Cli => Some(quote!(#module_visibility struct #operation_name_ident;)),
-            // The struct is already present in derive mode.
-            CodegenMode::Derive => None,
-        };
-
         Ok(quote!(
-            #struct_declaration
-
             #module_visibility mod #module_name {
                 #![allow(dead_code)]
 
@@ -94,9 +85,10 @@ impl<'a> GeneratedModule<'a> {
                 #impls
             }
 
+            #module_visibility use #module_name::#operation_name_ident;
+
             impl graphql_client::GraphQLRequest for #operation_name_ident {
                 type Variables = #module_name::Variables;
-                type ResponseData = #module_name::ResponseData;
 
                 fn build_query(variables: Self::Variables) -> ::graphql_client::QueryBody<Self::Variables> {
                     graphql_client::QueryBody {
@@ -104,7 +96,6 @@ impl<'a> GeneratedModule<'a> {
                         query: #module_name::QUERY,
                         operation_name: #module_name::OPERATION_NAME,
                     }
-
                 }
             }
         ))

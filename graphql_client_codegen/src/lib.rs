@@ -27,7 +27,7 @@ mod type_qualifiers;
 #[cfg(test)]
 mod tests;
 
-pub use crate::codegen_options::{CodegenMode, GraphQLClientCodegenOptions};
+pub use crate::codegen_options::GraphQLClientCodegenOptions;
 
 use std::{collections::HashMap, io};
 use thiserror::Error;
@@ -105,16 +105,9 @@ pub fn generate_module_token_stream(
         .and_then(|operation_name| query.select_operation(operation_name, *options.normalization()))
         .map(|op| vec![op]);
 
-    let operations = match (operations, &options.mode) {
-        (Some(ops), _) => ops,
-        (None, &CodegenMode::Cli) => query.operations().collect(),
-        (None, &CodegenMode::Derive) => {
-            return Err(GeneralError(derive_operation_not_found_error(
-                options.struct_ident(),
-                &query,
-            ))
-            .into());
-        }
+    let operations = match operations {
+        Some(ops) => ops,
+        None => query.operations().collect(),
     };
 
     // The generated modules.
@@ -173,25 +166,4 @@ fn read_file(path: &std::path::Path) -> Result<String, ReadFileError> {
             path: path.display().to_string(),
         })?;
     Ok(out)
-}
-
-/// In derive mode, build an error when the operation with the same name as the struct is not found.
-fn derive_operation_not_found_error(
-    ident: Option<&proc_macro2::Ident>,
-    query: &crate::query::Query,
-) -> String {
-    let operation_name = ident.map(ToString::to_string);
-    let struct_ident = operation_name.as_deref().unwrap_or("");
-
-    let available_operations: Vec<&str> = query
-        .operations()
-        .map(|(_id, op)| op.name.as_str())
-        .collect();
-    let available_operations: String = available_operations.join(", ");
-
-    return format!(
-        "The struct name does not match any defined operation in the query file.\nStruct name: {}\nDefined operations: {}",
-        struct_ident,
-        available_operations,
-    );
 }

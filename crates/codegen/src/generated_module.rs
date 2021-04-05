@@ -1,5 +1,5 @@
 use crate::{
-    query::{BoundQuery, OperationId},
+    query::{BoundQuery, OperationId, ResolvedOperation},
     BoxError,
 };
 use heck::*;
@@ -19,7 +19,6 @@ struct OperationNotFound {
 /// This struct contains the parameters necessary to generate code for a given operation.
 pub(crate) struct GeneratedModule<'a> {
     pub operation: &'a str,
-    pub query_string: &'a str,
     pub resolved_query: &'a crate::query::Query,
     pub schema: &'a crate::schema::Schema,
     pub options: &'a crate::GraphQLClientCodegenOptions,
@@ -43,6 +42,16 @@ impl<'a> GeneratedModule<'a> {
         self.resolved_query
             .select_operation(&op_name, *self.options.normalization())
             .map(|op| op.0)
+            .ok_or_else(|| OperationNotFound {
+                operation_name: op_name.into(),
+            })
+    }
+
+    fn root_op(&self) -> Result<&ResolvedOperation, OperationNotFound> {
+        let op_name = self.options.normalization().operation(self.operation);
+        self.resolved_query
+            .select_operation(&op_name, *self.options.normalization())
+            .map(|op| op.1)
             .ok_or_else(|| OperationNotFound {
                 operation_name: op_name.into(),
             })
@@ -72,7 +81,7 @@ impl<'a> GeneratedModule<'a> {
             })
             .unwrap_or_default();
 
-        let query_string = &self.query_string;
+        let query_string = &self.root_op()?.query_string;
         let impls = self.build_impls()?;
 
         Ok(quote!(

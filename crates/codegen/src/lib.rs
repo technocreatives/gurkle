@@ -77,11 +77,8 @@ pub fn generate_module_token_stream(
         .join("\n\n");
 
     // We need to qualify the query with the path to the crate it is part of
-    let (query_string, query) = {
-        let query = graphql_parser::parse_query(&query_string)
-            .map_err(|err| GeneralError(format!("Query parser error: {}", err)))?;
-        (query_string, query)
-    };
+    let query = graphql_parser::parse_query(&query_string)
+        .map_err(|err| GeneralError(format!("Query parser error: {}", err)))?;
 
     let query = crate::query::resolve(&schema, &query)?;
 
@@ -102,7 +99,7 @@ pub fn generate_module_token_stream(
 
     for operation in &operations {
         let generated = generated_module::GeneratedModule {
-            query_string: query_string.as_str(),
+            // query_string: format!("{}", operation.query),
             schema: &schema,
             resolved_query: &query,
             operation: &operation.1.name,

@@ -11,6 +11,7 @@ pub(crate) enum OperationType {
 
 pub(crate) struct ResolvedOperation {
     pub(crate) name: String,
+    pub(crate) query_string: String,
     pub(crate) _operation_type: OperationType,
     pub(crate) selection_set: Vec<SelectionId>,
     pub(crate) object_id: ObjectId,

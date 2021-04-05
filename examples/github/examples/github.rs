@@ -1,5 +1,5 @@
 use anyhow::*;
-use graphql_client::*;
+use gurkle::*;
 use log::*;
 use prettytable::*;
 use serde::*;

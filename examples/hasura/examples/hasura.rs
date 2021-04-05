@@ -1,4 +1,4 @@
-use graphql_client::*;
+use gurkle::*;
 use log::*;
 use prettytable::*;
 

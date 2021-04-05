@@ -1,4 +1,4 @@
-use graphql_client::GraphQLRequest;
+use gurkle::GraphQLRequest;
 use lazy_static::*;
 use std::cell::RefCell;
 use std::sync::Mutex;
@@ -23,7 +23,7 @@ lazy_static! {
 }
 
 async fn load_more() -> Result<JsValue, JsValue> {
-    let client = graphql_client::web::Client::new("https://www.graphqlhub.com/graphql");
+    let client = gurkle::web::Client::new("https://www.graphqlhub.com/graphql");
     let variables = puppy_smiles::Variables {
         after: LAST_ENTRY
             .lock()
@@ -32,7 +32,7 @@ async fn load_more() -> Result<JsValue, JsValue> {
     };
     let response = client.call(PuppySmiles, variables).await.map_err(|err| {
         log(&format!(
-            "Could not fetch puppies. graphql_client_web error: {:?}",
+            "Could not fetch puppies. gurkle_web error: {:?}",
             err
         ));
         JsValue::NULL
@@ -72,14 +72,14 @@ fn add_load_more_button() {
     on_click.forget();
 }
 
-fn render_response(response: graphql_client_web::Response<puppy_smiles::ResponseData>) {
+fn render_response(response: gurkle_web::Response<puppy_smiles::ResponseData>) {
     use std::fmt::Write;
 
     log(&format!("response body\n\n{:?}", response));
 
     let parent = document().body().expect_throw("no body");
 
-    let json: graphql_client_web::Response<puppy_smiles::ResponseData> = response;
+    let json: gurkle_web::Response<puppy_smiles::ResponseData> = response;
     let response = document()
         .create_element("div")
         .expect_throw("could not create div");

@@ -1,8 +1,8 @@
 [workspace]
 members = [
-    "graphql_client",
-    "graphql_client_cli",
-    "graphql_client_codegen",
+    "crates/client",
+    "crates/cli",
+    "crates/codegen",
 
     # Example crates.
     "examples/*",

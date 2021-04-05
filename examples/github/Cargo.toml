@@ -6,7 +6,7 @@ edition = "2018"
 
 [dev-dependencies]
 anyhow = "1.0"
-graphql_client = { path = "../../graphql_client" }
+gurkle = { path = "../../crates/client" }
 serde = "^1.0"
 reqwest = { version = "^0.10", features = ["json", "blocking"] }
 prettytable-rs = "^0.7"

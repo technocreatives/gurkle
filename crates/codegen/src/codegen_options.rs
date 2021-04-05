@@ -89,12 +89,12 @@ impl GraphQLClientCodegenOptions {
             .into_iter()
             .flat_map(|s| s.split(','));
 
-        std::iter::once("Serialize").chain(additional)
+        vec!["Serialize", "Debug"].into_iter().chain(additional)
     }
 
     /// Traits we want to derive for responses.
     pub fn all_response_derives(&self) -> impl Iterator<Item = &str> {
-        let base_derives = std::iter::once("Deserialize");
+        let base_derives = vec!["Deserialize", "Debug"].into_iter();
 
         base_derives.chain(
             self.additional_response_derives()

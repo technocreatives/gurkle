@@ -75,8 +75,8 @@ pub(crate) fn generate_code(params: CliCodegenParams) -> Result<()> {
     let generated_code = gen.to_string();
 
     let dest_file_path: PathBuf = output_directory
-        .map(|output_dir| output_dir.join("mod.rs"))
-        .unwrap_or_else(move || "mod.rs".into());
+        .map(|output_dir| output_dir.join("generated.rs"))
+        .unwrap_or_else(move || "generated.rs".into());
 
     let mut file = File::create(&dest_file_path)?;
     write!(

@@ -330,8 +330,8 @@ fn json_type_qualifiers_depth(typeref: &mut TypeRef) -> usize {
 }
 
 fn from_json_type_inner(schema: &mut Schema, inner: &mut TypeRef) -> super::StoredFieldType {
-    use crate::type_qualifiers::GraphqlTypeQualifier;
     use crate::introspection_response::*;
+    use crate::type_qualifiers::GraphqlTypeQualifier;
 
     let qualifiers_depth = json_type_qualifiers_depth(inner);
     let mut qualifiers = Vec::with_capacity(qualifiers_depth);

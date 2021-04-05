@@ -95,6 +95,7 @@ pub(crate) fn generate_code(params: CliCodegenParams) -> Result<()> {
 
 fn format(path: &Path) -> Result<(), std::io::Error> {
     std::process::Command::new("rustfmt")
+        .args(&["--edition", "2018"])
         .arg(path)
         .output()
         .map(|_| ())

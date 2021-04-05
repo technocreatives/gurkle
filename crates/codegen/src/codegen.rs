@@ -44,6 +44,7 @@ pub(crate) fn response_for_query(
 
     let q = quote! {
         use serde::{Serialize, Deserialize};
+        #[allow(unused_imports)]
         use super::*;
 
         #[allow(dead_code)]

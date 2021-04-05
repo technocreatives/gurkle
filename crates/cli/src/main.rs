@@ -1,9 +1,6 @@
 use env_logger::fmt::{Color, Style, StyledValue};
 use log::Level;
 
-#[cfg(feature = "rustfmt")]
-extern crate rustfmt_nightly as rustfmt;
-
 mod generate;
 pub(crate) mod graphql;
 mod introspect_schema;

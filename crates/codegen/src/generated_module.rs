@@ -55,6 +55,10 @@ impl<'a> GeneratedModule<'a> {
         let operation_name = self.operation;
         let operation_name_ident = self.options.normalization().operation(self.operation);
         let operation_name_ident = Ident::new(&operation_name_ident, Span::call_site());
+        let op_request_ident = Ident::new(
+            &format!("{}Request", operation_name_ident.to_string()),
+            Span::call_site(),
+        );
 
         // Force cargo to refresh the generated code when the query file changes.
         let query_include = self
@@ -83,21 +87,30 @@ impl<'a> GeneratedModule<'a> {
                 #query_include
 
                 #impls
-            }
 
-            #module_visibility use #module_name::#operation_name_ident;
+                impl Variables {
+                    pub async fn execute(self, client: &gurkle::Client) -> Result<#operation_name_ident, gurkle::Error> {
+                        use gurkle::Executor;
 
-            impl gurkle::GraphQLRequest for #operation_name_ident {
-                type Variables = #module_name::Variables;
+                        let query_body = gurkle::QueryBody {
+                            variables: self,
+                            query: QUERY,
+                            operation_name: OPERATION_NAME,
+                        };
 
-                fn build_query(variables: Self::Variables) -> ::gurkle::QueryBody<Self::Variables> {
-                    gurkle::QueryBody {
-                        variables,
-                        query: #module_name::QUERY,
-                        operation_name: #module_name::OPERATION_NAME,
+                        client.execute::<#operation_name_ident, _>(query_body).await
+                    }
+                }
+
+                impl #operation_name_ident {
+                    pub fn map<T, F: FnOnce(Self) -> T>(self, f: F) -> T {
+                        (f)(self)
                     }
                 }
             }
+
+            #module_visibility use #module_name::#operation_name_ident;
+            #module_visibility use #module_name::Variables as #op_request_ident;
         ))
     }
 }

@@ -2,69 +2,92 @@
 //!
 //! The main interface to this library is the custom derive that generates modules from a GraphQL query and schema. See the docs for the [`GraphQLRequest`] trait for a full example.
 
-#![deny(missing_docs)]
-#![warn(rust_2018_idioms)]
+#![warn(missing_docs)]
+#![deny(rust_2018_idioms)]
 
+use reqwest::Url;
 use serde::*;
 
 #[cfg(feature = "web")]
 pub mod web;
 
-use std::collections::HashMap;
 use std::fmt::{self, Display};
+use std::pin::Pin;
+use std::{collections::HashMap, future::Future};
 
 doc_comment::doctest!("../../../README.md");
+pub trait Executor {
+    /// Execute
+    fn execute<'a, T, V>(
+        &'a self,
+        request_body: QueryBody<V>,
+    ) -> Pin<Box<dyn Future<Output = Result<T, Error>> + 'a>>
+    where
+        V: Serialize + 'a,
+        T: for<'de> Deserialize<'de> + 'a;
+}
 
-/// A convenience trait that can be used to build a GraphQL request body.
-///
-/// This will be implemented for you by codegen in the normal case. It is implemented on the struct you place the derive on.
-///
-/// Example:
-///
-/// ```
-/// use gurkle::*;
-/// use serde_json::json;
-/// use std::error::Error;
-///
-/// #[derive(GraphQLRequest)]
-/// #[graphql(
-///   query_path = "../gurkle_codegen/src/tests/star_wars_query.graphql",
-///   schema_path = "../gurkle_codegen/src/tests/star_wars_schema.graphql"
-/// )]
-/// struct StarWarsQuery;
-///
-/// fn main() -> Result<(), Box<dyn Error>> {
-///     use gurkle::GraphQLRequest;
-///
-///     let variables = star_wars_query::Variables {
-///         episode_for_hero: star_wars_query::Episode::NEWHOPE,
-///     };
-///
-///     let expected_body = json!({
-///         "operationName": star_wars_query::OPERATION_NAME,
-///         "query": star_wars_query::QUERY,
-///         "variables": {
-///             "episodeForHero": "NEWHOPE"
-///         },
-///     });
-///
-///     let actual_body = serde_json::to_value(
-///         StarWarsQuery::build_query(variables)
-///     )?;
-///
-///     assert_eq!(actual_body, expected_body);
-///
-///     Ok(())
-/// }
-/// ```
-pub trait GraphQLRequest: for<'de> serde::Deserialize<'de> {
-    /// The shape of the variables expected by the query. This should be a generated struct most of the time.
-    type Variables: serde::Serialize;
-    /// The top-level shape of the response data (the `data` field in the GraphQL response). In practice this should be generated, since it is hard to write by hand without error.
-    // type ResponseData:
+pub struct Client {
+    http_endpoint: Url,
+    http: reqwest::Client,
+}
 
-    /// Produce a GraphQL query struct that can be JSON serialized and sent to a GraphQL API.
-    fn build_query(variables: Self::Variables) -> QueryBody<Self::Variables>;
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("The response contains errors.")]
+    GraphQL(Vec<GraphQLError>),
+
+    #[error("An HTTP error occurred.")]
+    Http(#[from] reqwest::Error),
+
+    #[error("An error parsing JSON response occurred.")]
+    Json(#[from] serde_json::Error),
+
+    #[error("The response body is empty.")]
+    Empty,
+}
+
+impl Client {
+    /// Create a new Gurkle client.
+    pub fn new(endpoint: &Url) -> Self {
+        Self {
+            http_endpoint: endpoint.clone(),
+            http: reqwest::Client::new(),
+        }
+    }
+
+    async fn execute_inner<T, V>(&self, request_body: QueryBody<V>) -> Result<T, Error>
+    where
+        V: Serialize,
+        T: for<'de> Deserialize<'de>,
+    {
+        let response = self
+            .http
+            .post(self.http_endpoint.clone())
+            .json(&request_body)
+            .send()
+            .await?;
+        let body: Response<T> = response.json().await?;
+
+        match (body.data, body.errors) {
+            (None, None) => Err(Error::Empty),
+            (None, Some(errs)) => Err(Error::GraphQL(errs)),
+            (Some(data), _) => Ok(data),
+        }
+    }
+}
+
+impl Executor for Client {
+    fn execute<'a, T, V>(
+        &'a self,
+        request_body: QueryBody<V>,
+    ) -> Pin<Box<dyn Future<Output = Result<T, Error>> + 'a>>
+    where
+        V: Serialize + 'a,
+        T: for<'de> Deserialize<'de> + 'a,
+    {
+        Box::pin(self.execute_inner(request_body))
+    }
 }
 
 /// The form in which queries are sent over HTTP in most implementations. This will be built using the [`GraphQLRequest`] trait normally.
@@ -79,7 +102,7 @@ pub struct QueryBody<Variables> {
     pub operation_name: &'static str,
 }
 
-/// Represents a location inside a query string. Used in errors. See [`Error`].
+/// Represents a location inside a query string. Used in errors. See [`GraphQLError`].
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
 pub struct Location {
     /// The line number in the query string where the error originated (starting from 1).
@@ -88,7 +111,7 @@ pub struct Location {
     pub column: i32,
 }
 
-/// Part of a path in a query. It can be an object key or an array index. See [`Error`].
+/// Part of a path in a query. It can be an object key or an array index. See [`GraphQLError`].
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(untagged)]
 pub enum PathFragment {
@@ -118,14 +141,14 @@ impl Display for PathFragment {
 /// # use serde_json::json;
 /// # use serde::Deserialize;
 /// # use gurkle::GraphQLRequest;
-/// # use std::error::Error;
+/// # use std::error::GraphQLError;
 /// #
 /// # #[derive(Debug, Deserialize, PartialEq)]
 /// # struct ResponseData {
 /// #     something: i32
 /// # }
 /// #
-/// # fn main() -> Result<(), Box<dyn Error>> {
+/// # fn main() -> Result<(), Box<dyn GraphQLError>> {
 /// use gurkle::*;
 ///
 /// let body: Response<ResponseData> = serde_json::from_value(json!({
@@ -145,7 +168,7 @@ impl Display for PathFragment {
 /// let expected: Response<ResponseData> = Response {
 ///     data: None,
 ///     errors: Some(vec![
-///         Error {
+///         GraphQLError {
 ///             message: "The server crashed. Sorry.".to_owned(),
 ///             locations: Some(vec![
 ///                 Location {
@@ -156,7 +179,7 @@ impl Display for PathFragment {
 ///             path: None,
 ///             extensions: None,
 ///         },
-///         Error {
+///         GraphQLError {
 ///             message: "Seismic activity detected".to_owned(),
 ///             locations: None,
 ///             path: Some(vec![
@@ -174,7 +197,7 @@ impl Display for PathFragment {
 /// # }
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct Error {
+pub struct GraphQLError {
     /// The human-readable error message. This is the only required field.
     pub message: String,
     /// Which locations in the query the error applies to.
@@ -185,7 +208,7 @@ pub struct Error {
     pub extensions: Option<HashMap<String, serde_json::Value>>,
 }
 
-impl Display for Error {
+impl Display for GraphQLError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // Use `/` as a separator like JSON Pointer.
         let path = self
@@ -225,7 +248,7 @@ impl Display for Error {
 /// # use serde_json::json;
 /// # use serde::Deserialize;
 /// # use gurkle::GraphQLRequest;
-/// # use std::error::Error;
+/// # use std::error::GraphQLError;
 /// #
 /// # #[derive(Debug, Deserialize, PartialEq)]
 /// # struct User {
@@ -243,7 +266,7 @@ impl Display for Error {
 /// #     dogs: Vec<Dog>,
 /// # }
 /// #
-/// # fn main() -> Result<(), Box<dyn Error>> {
+/// # fn main() -> Result<(), Box<dyn GraphQLError>> {
 /// use gurkle::Response;
 ///
 /// let body: Response<ResponseData> = serde_json::from_value(json!({
@@ -272,7 +295,7 @@ pub struct Response<Data> {
     /// The absent, partial or complete response data.
     pub data: Option<Data>,
     /// The top-level errors returned by the server.
-    pub errors: Option<Vec<Error>>,
+    pub errors: Option<Vec<GraphQLError>>,
 }
 
 #[cfg(test)]
@@ -286,11 +309,11 @@ mod tests {
             "message": "I accidentally your whole query"
         });
 
-        let deserialized_error: Error = serde_json::from_value(err).unwrap();
+        let deserialized_error: GraphQLError = serde_json::from_value(err).unwrap();
 
         assert_eq!(
             deserialized_error,
-            Error {
+            GraphQLError {
                 message: "I accidentally your whole query".to_string(),
                 locations: None,
                 path: None,
@@ -307,11 +330,11 @@ mod tests {
             "path": ["home", "alone", 3, "rating"]
         });
 
-        let deserialized_error: Error = serde_json::from_value(err).unwrap();
+        let deserialized_error: GraphQLError = serde_json::from_value(err).unwrap();
 
         assert_eq!(
             deserialized_error,
-            Error {
+            GraphQLError {
                 message: "I accidentally your whole query".to_string(),
                 locations: Some(vec![
                     Location {
@@ -346,7 +369,7 @@ mod tests {
             }
         });
 
-        let deserialized_error: Error = serde_json::from_value(err).unwrap();
+        let deserialized_error: GraphQLError = serde_json::from_value(err).unwrap();
 
         let mut expected_extensions = HashMap::new();
         expected_extensions.insert("code".to_owned(), json!("CAN_NOT_FETCH_BY_ID"));
@@ -355,7 +378,7 @@ mod tests {
 
         assert_eq!(
             deserialized_error,
-            Error {
+            GraphQLError {
                 message: "I accidentally your whole query".to_string(),
                 locations: Some(vec![
                     Location {

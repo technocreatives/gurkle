@@ -40,7 +40,7 @@ enum Cli {
         #[structopt(short = "s", long = "schema-path")]
         schema_path: PathBuf,
         /// Path to the GraphQL query file.
-        query_path: PathBuf,
+        query_paths: Vec<PathBuf>,
         /// Name of target query. If you don't set this parameter, cli generate all queries in query file.
         #[structopt(long = "selected-operation")]
         selected_operation: Option<String>,
@@ -103,7 +103,7 @@ fn main() -> anyhow::Result<()> {
             module_visibility,
             no_formatting,
             output_directory,
-            query_path,
+            query_paths,
             schema_path,
             selected_operation,
             custom_scalars_module,
@@ -114,7 +114,7 @@ fn main() -> anyhow::Result<()> {
             module_visibility,
             no_formatting,
             output_directory,
-            query_path,
+            query_paths,
             schema_path,
             selected_operation,
             custom_scalars_module,

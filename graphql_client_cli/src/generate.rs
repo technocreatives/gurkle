@@ -1,12 +1,12 @@
 use anyhow::*;
 use graphql_client_codegen::{generate_module_token_stream, GraphQLClientCodegenOptions};
-use std::fs::File;
+use std::{fs::File, path::Path};
 use std::io::Write as _;
 use std::path::PathBuf;
 use syn::Token;
 
 pub(crate) struct CliCodegenParams {
-    pub query_path: PathBuf,
+    pub query_paths: Vec<PathBuf>,
     pub schema_path: PathBuf,
     pub selected_operation: Option<String>,
     pub variables_derives: Option<String>,
@@ -26,7 +26,7 @@ pub(crate) fn generate_code(params: CliCodegenParams) -> Result<()> {
         no_formatting,
         output_directory,
         module_visibility: _module_visibility,
-        query_path,
+        query_paths,
         schema_path,
         selected_operation,
         custom_scalars_module,
@@ -70,49 +70,27 @@ pub(crate) fn generate_code(params: CliCodegenParams) -> Result<()> {
         options.set_custom_scalars_module(custom_scalars_module);
     }
 
-    let gen = generate_module_token_stream(query_path.clone(), &schema_path, options).unwrap();
+    let gen = generate_module_token_stream(query_paths.clone(), &schema_path, options).unwrap();
 
     let generated_code = gen.to_string();
-    let generated_code = if cfg!(feature = "rustfmt") && !no_formatting {
-        format(&generated_code)
-    } else {
-        generated_code
-    };
-
-    let query_file_name: ::std::ffi::OsString = query_path
-        .file_name()
-        .map(ToOwned::to_owned)
-        .ok_or_else(|| format_err!("Failed to find a file name in the provided query path."))?;
 
     let dest_file_path: PathBuf = output_directory
-        .map(|output_dir| output_dir.join(query_file_name).with_extension("rs"))
-        .unwrap_or_else(move || query_path.with_extension("rs"));
+        .map(|output_dir| output_dir.join("mod.rs"))
+        .unwrap_or_else(move || "mod.rs".into());
 
-    let mut file = File::create(dest_file_path)?;
+    let mut file = File::create(&dest_file_path)?;
     write!(file, "{}", generated_code)?;
+
+    if !no_formatting {
+        format(&dest_file_path)?;
+    };
 
     Ok(())
 }
 
-#[allow(unused_variables)]
-fn format(codes: &str) -> String {
-    #[cfg(feature = "rustfmt")]
-    {
-        use rustfmt::{Config, Input, Session};
-
-        let mut config = Config::default();
-
-        config.set().emit_mode(rustfmt_nightly::EmitMode::Stdout);
-        config.set().verbose(rustfmt_nightly::Verbosity::Quiet);
-
-        let mut out = Vec::with_capacity(codes.len() * 2);
-
-        Session::new(config, Some(&mut out))
-            .format(Input::Text(codes.to_string()))
-            .unwrap_or_else(|err| panic!("rustfmt error: {}", err));
-
-        return String::from_utf8(out).unwrap();
-    }
-    #[cfg(not(feature = "rustfmt"))]
-    unreachable!("called format() without the rustfmt feature")
+fn format(path: &Path) -> Result<(), std::io::Error> {
+    std::process::Command::new("rustfmt")
+        .arg(path)
+        .output()
+        .map(|_| ())
 }

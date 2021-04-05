@@ -6,9 +6,11 @@
 //!
 //! It is not meant to be used directly by users of the library.
 
-use lazy_static::*;
+use graphql_introspection_query::introspection_response::IntrospectionResponse;
+use graphql_parser::schema::parse_schema;
 use proc_macro2::TokenStream;
 use quote::*;
+use schema::Schema;
 
 mod codegen;
 mod codegen_options;
@@ -29,7 +31,7 @@ mod tests;
 
 pub use crate::codegen_options::GraphQLClientCodegenOptions;
 
-use std::{collections::HashMap, io};
+use std::{io, path::Path};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -37,63 +39,46 @@ use thiserror::Error;
 struct GeneralError(String);
 
 type BoxError = Box<dyn std::error::Error + Send + Sync + 'static>;
-type CacheMap<T> = std::sync::Mutex<HashMap<std::path::PathBuf, T>>;
-
-lazy_static! {
-    static ref SCHEMA_CACHE: CacheMap<schema::Schema> = CacheMap::default();
-    static ref QUERY_CACHE: CacheMap<(String, graphql_parser::query::Document)> =
-        CacheMap::default();
-}
 
 /// Generates Rust code given a query document, a schema and options.
 pub fn generate_module_token_stream(
-    query_path: std::path::PathBuf,
-    schema_path: &std::path::Path,
+    query_path: Vec<std::path::PathBuf>,
+    schema_path: &Path,
     options: GraphQLClientCodegenOptions,
 ) -> Result<TokenStream, BoxError> {
-    use std::collections::hash_map;
-
     let schema_extension = schema_path
         .extension()
         .and_then(std::ffi::OsStr::to_str)
         .unwrap_or("INVALID");
 
     // Check the schema cache.
-    let schema: schema::Schema = {
-        let mut lock = SCHEMA_CACHE.lock().expect("schema cache is poisoned");
-        match lock.entry(schema_path.to_path_buf()) {
-            hash_map::Entry::Occupied(o) => o.get().clone(),
-            hash_map::Entry::Vacant(v) => {
-                let schema_string = read_file(v.key())?;
-                let schema = match schema_extension {
-                    "graphql" | "gql" => {
-                        let s = graphql_parser::schema::parse_schema(&schema_string).map_err(|parser_error| GeneralError(format!("Parser error: {}", parser_error)))?;
-                        schema::Schema::from(s)
-                    }
-                    "json" => {
-                        let parsed: graphql_introspection_query::introspection_response::IntrospectionResponse = serde_json::from_str(&schema_string)?;
-                        schema::Schema::from(parsed)
-                    }
-                    extension => return Err(GeneralError(format!("Unsupported extension for the GraphQL schema: {} (only .json and .graphql are supported)", extension)).into())
-                };
-
-                v.insert(schema).clone()
+    let schema: Schema = {
+        let schema_string = read_file(schema_path)?;
+        let schema = match schema_extension {
+            "graphql" | "gql" => {
+                let s = parse_schema(&schema_string).map_err(|parser_error| GeneralError(format!("Parser error: {}", parser_error)))?;
+                Schema::from(s)
             }
-        }
+            "json" => {
+                let parsed: IntrospectionResponse = serde_json::from_str(&schema_string)?;
+                Schema::from(parsed)
+            }
+            extension => return Err(GeneralError(format!("Unsupported extension for the GraphQL schema: {} (only .json and .graphql are supported)", extension)).into())
+        };
+        schema
     };
+
+    // Load and concatenative all the query files.
+    let query_string = query_path.iter()
+        .map(|x| read_file(x))
+        .collect::<Result<Vec<_>, _>>()?
+        .join("\n\n");
 
     // We need to qualify the query with the path to the crate it is part of
     let (query_string, query) = {
-        let mut lock = QUERY_CACHE.lock().expect("query cache is poisoned");
-        match lock.entry(query_path) {
-            hash_map::Entry::Occupied(o) => o.get().clone(),
-            hash_map::Entry::Vacant(v) => {
-                let query_string = read_file(v.key())?;
-                let query = graphql_parser::parse_query(&query_string)
-                    .map_err(|err| GeneralError(format!("Query parser error: {}", err)))?;
-                v.insert((query_string, query)).clone()
-            }
-        }
+        let query = graphql_parser::parse_query(&query_string)
+            .map_err(|err| GeneralError(format!("Query parser error: {}", err)))?;
+        (query_string, query)
     };
 
     let query = crate::query::resolve(&schema, &query)?;
@@ -150,7 +135,7 @@ enum ReadFileError {
     },
 }
 
-fn read_file(path: &std::path::Path) -> Result<String, ReadFileError> {
+fn read_file(path: &Path) -> Result<String, ReadFileError> {
     use std::fs;
     use std::io::prelude::*;
 

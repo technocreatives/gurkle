@@ -8,9 +8,6 @@
 use reqwest::Url;
 use serde::*;
 
-#[cfg(feature = "web")]
-pub mod web;
-
 use std::fmt::{self, Display};
 use std::pin::Pin;
 use std::{collections::HashMap, future::Future};

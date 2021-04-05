@@ -18,8 +18,8 @@ pub fn introspect_schema(
         None => Box::new(std::io::stdout()),
     };
 
-    let request_body: gurkle::QueryBody<()> = gurkle::QueryBody {
-        variables: (),
+    let request_body: gurkle::RequestBody = gurkle::RequestBody {
+        variables: serde_json::Value::Null,
         query: introspection_query::QUERY,
         operation_name: introspection_query::OPERATION_NAME,
     };

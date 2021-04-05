@@ -14,12 +14,11 @@ use std::{collections::HashMap, future::Future};
 
 pub trait Executor {
     /// Execute
-    fn execute<'a, T, V>(
+    fn execute<'a, T>(
         &'a self,
-        request_body: QueryBody<V>,
+        request_body: RequestBody,
     ) -> Pin<Box<dyn Future<Output = Result<T, Error>> + 'a>>
     where
-        V: Serialize + 'a,
         T: for<'de> Deserialize<'de> + 'a;
 }
 
@@ -52,9 +51,8 @@ impl Client {
         }
     }
 
-    async fn execute_inner<T, V>(&self, request_body: QueryBody<V>) -> Result<T, Error>
+    async fn execute_inner<T>(&self, request_body: RequestBody) -> Result<T, Error>
     where
-        V: Serialize,
         T: for<'de> Deserialize<'de>,
     {
         let response = self
@@ -74,23 +72,22 @@ impl Client {
 }
 
 impl Executor for Client {
-    fn execute<'a, T, V>(
+    fn execute<'a, T>(
         &'a self,
-        request_body: QueryBody<V>,
+        request_body: RequestBody,
     ) -> Pin<Box<dyn Future<Output = Result<T, Error>> + 'a>>
     where
-        V: Serialize + 'a,
         T: for<'de> Deserialize<'de> + 'a,
     {
         Box::pin(self.execute_inner(request_body))
     }
 }
 
-/// The form in which queries are sent over HTTP in most implementations. This will be built using the [`GraphQLRequest`] trait normally.
+/// The form in which queries are sent over HTTP in most implementations.
 #[derive(Debug, Serialize, Deserialize)]
-pub struct QueryBody<Variables> {
+pub struct RequestBody {
     /// The values for the variables. They must match those declared in the queries. This should be the `Variables` struct from the generated module corresponding to the query.
-    pub variables: Variables,
+    pub variables: serde_json::Value,
     /// The GraphQL query, as a string.
     pub query: &'static str,
     /// The GraphQL operation name, as a string.

@@ -98,16 +98,16 @@ impl<'a> GeneratedModule<'a> {
                 #impls
 
                 impl Variables {
-                    pub async fn execute(self, client: &gurkle::Client) -> Result<#operation_name_ident, gurkle::Error> {
+                    pub async fn execute(&self, client: &gurkle::Client) -> Result<#operation_name_ident, gurkle::Error> {
                         use gurkle::Executor;
 
-                        let query_body = gurkle::QueryBody {
-                            variables: self,
+                        let req_body = gurkle::RequestBody {
+                            variables: serde_json::to_value(&self)?,
                             query: QUERY,
                             operation_name: OPERATION_NAME,
                         };
 
-                        client.execute::<#operation_name_ident, _>(query_body).await
+                        client.execute::<#operation_name_ident>(req_body).await
                     }
                 }
 

@@ -438,11 +438,11 @@ impl std::convert::From<graphql_parser::schema::Document> for Schema {
     }
 }
 
-impl std::convert::From<graphql_introspection_query::introspection_response::IntrospectionResponse>
+impl std::convert::From<crate::introspection_response::IntrospectionResponse>
     for Schema
 {
     fn from(
-        src: graphql_introspection_query::introspection_response::IntrospectionResponse,
+        src: crate::introspection_response::IntrospectionResponse,
     ) -> Self {
         json_conversion::build_schema(src)
     }

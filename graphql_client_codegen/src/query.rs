@@ -136,7 +136,7 @@ fn create_roots(
                     Some(v) => v,
                     None => {
                         return Err(QueryValidationError::new(
-                            "Query was missing an operation name.".to_owned()
+                            "Query was missing an operation name.".to_owned(),
                         ));
                     }
                 };

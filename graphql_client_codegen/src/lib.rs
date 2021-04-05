@@ -6,8 +6,8 @@
 //!
 //! It is not meant to be used directly by users of the library.
 
-use graphql_introspection_query::introspection_response::IntrospectionResponse;
 use graphql_parser::schema::parse_schema;
+use introspection_response::IntrospectionResponse;
 use proc_macro2::TokenStream;
 use quote::*;
 use schema::Schema;
@@ -21,6 +21,7 @@ pub mod schema;
 
 mod constants;
 mod generated_module;
+mod introspection_response;
 /// Normalization-related code
 pub mod normalization;
 mod query;
@@ -69,7 +70,8 @@ pub fn generate_module_token_stream(
     };
 
     // Load and concatenative all the query files.
-    let query_string = query_path.iter()
+    let query_string = query_path
+        .iter()
         .map(|x| read_file(x))
         .collect::<Result<Vec<_>, _>>()?
         .join("\n\n");

@@ -283,13 +283,6 @@ pub enum IntrospectionResponse {
 }
 
 impl IntrospectionResponse {
-    pub fn as_schema(&self) -> &SchemaContainer {
-        match self {
-            IntrospectionResponse::FullResponse(full_response) => &full_response.data,
-            IntrospectionResponse::Schema(schema) => &schema,
-        }
-    }
-
     pub fn into_schema(self) -> SchemaContainer {
         match self {
             IntrospectionResponse::FullResponse(full_response) => full_response.data,

@@ -5,26 +5,49 @@
 #![warn(missing_docs)]
 #![deny(rust_2018_idioms)]
 
-use reqwest::Url;
-use serde::*;
+mod ws;
 
-use std::fmt::{self, Display};
+use futures_util::{stream::Stream, StreamExt};
+use reqwest::Url;
+use serde::{Deserialize, Serialize};
+use tokio_tungstenite::tungstenite;
+use ws::GraphQLWebSocket;
+
 use std::pin::Pin;
 use std::{collections::HashMap, future::Future};
+use std::{
+    fmt::{self, Display},
+    sync::Mutex,
+};
 
-pub trait Executor {
+pub trait Executor<'a, T>
+where
+    T: for<'de> Deserialize<'de> + 'a,
+{
     /// Execute
-    fn execute<'a, T>(
+    fn execute(
         &'a self,
         request_body: RequestBody,
-    ) -> Pin<Box<dyn Future<Output = Result<T, Error>> + 'a>>
-    where
-        T: for<'de> Deserialize<'de> + 'a;
+    ) -> Pin<Box<dyn Future<Output = Result<T, Error>> + 'a>>;
 }
 
-pub struct Client {
+pub trait Subscriber<T>
+where
+    T: for<'de> Deserialize<'de> + Unpin + Send + 'static,
+{
+    fn subscribe(
+        &self,
+        request_body: RequestBody,
+    ) -> Pin<Box<dyn Stream<Item = Result<T, Error>> + Send>>;
+}
+
+pub struct HttpClient {
     http_endpoint: Url,
     http: reqwest::Client,
+}
+
+pub struct WsClient {
+    ws: Mutex<GraphQLWebSocket>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -38,12 +61,74 @@ pub enum Error {
     #[error("An error parsing JSON response occurred.")]
     Json(#[from] serde_json::Error),
 
+    #[error("The server replied with an error payload.")]
+    Server(serde_json::Value),
+
+    #[error("A WebSocket error occurred.")]
+    WebSocket(#[from] tungstenite::Error),
+
     #[error("The response body is empty.")]
     Empty,
 }
 
-impl Client {
-    /// Create a new Gurkle client.
+impl WsClient {
+    /// Create a new Gurkle HTTP client.
+    pub async fn new(endpoint: &Url) -> Result<Self, tungstenite::Error> {
+        Ok(Self {
+            ws: Mutex::new(GraphQLWebSocket::connect(endpoint.clone()).await?),
+        })
+    }
+
+    fn sub_inner<T>(&self, request_body: RequestBody) -> impl Stream<Item = Result<T, Error>> + Send
+    where
+        T: for<'de> Deserialize<'de> + Unpin + Send + 'static,
+    {
+        let subscription = {
+            let mut ws = self.ws.lock().unwrap();
+            ws.subscribe::<T>(request_body)
+        };
+        let mut stream = subscription.stream();
+
+        async_stream::stream! {
+            while let Some(msg) = stream.next().await {
+                match msg {
+                    Ok(value) => match serde_json::from_value(value) {
+                        Ok(v) => yield Ok(v),
+                        Err(e) => yield Err(Error::Json(e)),
+                    },
+                    Err(err) => yield Err(err),
+                }
+            }
+        }
+    }
+}
+
+impl<T> Subscriber<T> for WsClient
+where
+    T: for<'de> Deserialize<'de> + Unpin + Send + 'static,
+{
+    fn subscribe(
+        &self,
+        request_body: RequestBody,
+    ) -> Pin<Box<dyn Stream<Item = Result<T, Error>> + Send>> {
+        Box::pin(self.sub_inner(request_body))
+    }
+}
+
+impl<'a, T> Executor<'a, T> for HttpClient
+where
+    T: for<'de> Deserialize<'de> + 'a,
+{
+    fn execute(
+        &'a self,
+        request_body: RequestBody,
+    ) -> Pin<Box<dyn Future<Output = Result<T, Error>> + 'a>> {
+        Box::pin(self.execute_inner(request_body))
+    }
+}
+
+impl HttpClient {
+    /// Create a new Gurkle HTTP client.
     pub fn new(endpoint: &Url) -> Self {
         Self {
             http_endpoint: endpoint.clone(),
@@ -71,20 +156,8 @@ impl Client {
     }
 }
 
-impl Executor for Client {
-    fn execute<'a, T>(
-        &'a self,
-        request_body: RequestBody,
-    ) -> Pin<Box<dyn Future<Output = Result<T, Error>> + 'a>>
-    where
-        T: for<'de> Deserialize<'de> + 'a,
-    {
-        Box::pin(self.execute_inner(request_body))
-    }
-}
-
 /// The form in which queries are sent over HTTP in most implementations.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RequestBody {
     /// The values for the variables. They must match those declared in the queries. This should be the `Variables` struct from the generated module corresponding to the query.
     pub variables: serde_json::Value,
@@ -289,6 +362,28 @@ pub struct Response<Data> {
     pub data: Option<Data>,
     /// The top-level errors returned by the server.
     pub errors: Option<Vec<GraphQLError>>,
+}
+
+impl<Data> From<Response<Data>> for Result<Data, Error> {
+    fn from(res: Response<Data>) -> Self {
+        match (res.data, res.errors) {
+            (Some(data), _) => Ok(data),
+            (None, Some(errs)) => Err(Error::GraphQL(errs)),
+            (None, None) => Err(Error::Empty),
+        }
+    }
+}
+
+impl<Data> Clone for Response<Data>
+where
+    Data: Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            data: self.data.clone(),
+            errors: self.errors.clone(),
+        }
+    }
 }
 
 #[cfg(test)]

@@ -278,17 +278,16 @@ pub mod introspection_query {
     }
     pub type IntrospectionQuerySchemaDirectivesArgs = InputValue;
     impl Variables {
-        pub async fn execute(
-            &self,
-            client: &gurkle::Client,
+        pub async fn execute<'a>(
+            &'a self,
+            client: &'a dyn gurkle::Executor<'a, IntrospectionQuery>,
         ) -> Result<IntrospectionQuery, gurkle::Error> {
-            use gurkle::Executor;
             let req_body = gurkle::RequestBody {
                 variables: serde_json::to_value(&self)?,
                 query: QUERY,
                 operation_name: OPERATION_NAME,
             };
-            client.execute::<IntrospectionQuery>(req_body).await
+            client.execute(req_body).await
         }
     }
 }

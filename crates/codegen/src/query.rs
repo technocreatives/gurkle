@@ -7,7 +7,7 @@ mod selection;
 mod validation;
 
 pub(crate) use fragments::{fragment_is_recursive, ResolvedFragment};
-pub(crate) use operations::ResolvedOperation;
+pub(crate) use operations::{OperationType, ResolvedOperation};
 pub(crate) use selection::*;
 
 use crate::{
@@ -123,7 +123,7 @@ fn create_roots(
                     object_id: on,
                     query_string: m.to_string(),
                     name: m.name.as_ref().expect("mutation without name").to_owned(),
-                    _operation_type: operations::OperationType::Mutation,
+                    operation_type: operations::OperationType::Mutation,
                     selection_set: Vec::with_capacity(m.selection_set.items.len()),
                 };
 
@@ -145,7 +145,7 @@ fn create_roots(
                 let resolved_operation: ResolvedOperation = ResolvedOperation {
                     name: name.to_owned(),
                     query_string: q.to_string(),
-                    _operation_type: operations::OperationType::Query,
+                    operation_type: operations::OperationType::Query,
                     object_id: on,
                     selection_set: Vec::with_capacity(q.selection_set.items.len()),
                 };
@@ -174,7 +174,7 @@ fn create_roots(
                         .expect("subscription without name")
                         .to_owned(),
                     query_string: s.to_string(),
-                    _operation_type: operations::OperationType::Subscription,
+                    operation_type: operations::OperationType::Subscription,
                     object_id: on,
                     selection_set: Vec::with_capacity(s.selection_set.items.len()),
                 };

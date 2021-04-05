@@ -81,8 +81,45 @@ impl<'a> GeneratedModule<'a> {
             })
             .unwrap_or_default();
 
-        let query_string = &self.root_op()?.query_string;
+        let op = &self.root_op()?;
+        let query_string = &op.query_string;
         let impls = self.build_impls()?;
+
+        let variables_impl = if op.operation_type == crate::query::OperationType::Subscription {
+            quote! {
+                impl Variables {
+                    pub fn subscribe(
+                        &self,
+                        client: &dyn gurkle::Subscriber<#operation_name_ident>,
+                    ) -> Pin<Box<dyn futures_util::stream::Stream<Item = Result<#operation_name_ident, gurkle::Error>> + Send>> {
+                        let req_body = gurkle::RequestBody {
+                            variables: serde_json::to_value(&self)?,
+                            query: QUERY,
+                            operation_name: OPERATION_NAME,
+                        };
+
+                        client.subscribe(req_body)
+                    }
+                }
+            }
+        } else {
+            quote! {
+                impl Variables {
+                    pub async fn execute<'a>(
+                        &'a self,
+                        client: &'a dyn gurkle::Executor<'a, #operation_name_ident>,
+                    ) -> Result<#operation_name_ident, gurkle::Error> {
+                        let req_body = gurkle::RequestBody {
+                            variables: serde_json::to_value(&self)?,
+                            query: QUERY,
+                            operation_name: OPERATION_NAME,
+                        };
+
+                        client.execute(req_body).await
+                    }
+                }
+            }
+        };
 
         Ok(quote!(
             #module_visibility mod #module_name {
@@ -97,19 +134,7 @@ impl<'a> GeneratedModule<'a> {
 
                 #impls
 
-                impl Variables {
-                    pub async fn execute(&self, client: &gurkle::Client) -> Result<#operation_name_ident, gurkle::Error> {
-                        use gurkle::Executor;
-
-                        let req_body = gurkle::RequestBody {
-                            variables: serde_json::to_value(&self)?,
-                            query: QUERY,
-                            operation_name: OPERATION_NAME,
-                        };
-
-                        client.execute::<#operation_name_ident>(req_body).await
-                    }
-                }
+                #variables_impl
 
                 impl #operation_name_ident {
                     pub fn map<T, F: FnOnce(Self) -> T>(self, f: F) -> T {

@@ -132,8 +132,17 @@ fn create_roots(
                 graphql_parser::query::OperationDefinition::Query(q),
             ) => {
                 let on = schema.query_type();
+                let name = match q.name.as_ref() {
+                    Some(v) => v,
+                    None => {
+                        return Err(QueryValidationError::new(
+                            "Query was missing an operation name.".to_owned()
+                        ));
+                    }
+                };
+
                 let resolved_operation: ResolvedOperation = ResolvedOperation {
-                    name: q.name.as_ref().expect("query without name").to_owned(),
+                    name: name.to_owned(),
                     _operation_type: operations::OperationType::Query,
                     object_id: on,
                     selection_set: Vec::with_capacity(q.selection_set.items.len()),

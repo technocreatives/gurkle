@@ -15,7 +15,6 @@ use std::fmt::{self, Display};
 use std::pin::Pin;
 use std::{collections::HashMap, future::Future};
 
-doc_comment::doctest!("../../../README.md");
 pub trait Executor {
     /// Execute
     fn execute<'a, T, V>(

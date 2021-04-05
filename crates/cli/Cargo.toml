@@ -1,5 +1,5 @@
 [package]
-name = "gurkle_cli"
+name = "gurkle-cli"
 description = "The CLI for gurkle"
 version = "0.1.0"
 authors = [

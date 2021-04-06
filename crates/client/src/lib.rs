@@ -2,7 +2,7 @@
 //!
 //! The main interface to this library is the custom derive that generates modules from a GraphQL query and schema. See the docs for the [`GraphQLRequest`] trait for a full example.
 
-#![warn(missing_docs)]
+#![deny(missing_docs)]
 #![deny(rust_2018_idioms)]
 
 mod ws;
@@ -20,53 +20,65 @@ use std::{
     sync::Mutex,
 };
 
+/// Trait for executing GraphQL operations (queries and mutations).
 pub trait Executor<'a, T>
 where
     T: for<'de> Deserialize<'de> + 'a,
 {
-    /// Execute
+    /// Execute provided GraphQL operation (query or mutation).
     fn execute(
         &'a self,
         request_body: RequestBody,
     ) -> Pin<Box<dyn Future<Output = Result<T, Error>> + 'a>>;
 }
 
+/// Trait for subscribing to GraphQL subscription operations.
 pub trait Subscriber<T>
 where
     T: for<'de> Deserialize<'de> + Unpin + Send + 'static,
 {
+    /// Subscribe to provided GraphQL subscription.
     fn subscribe(
         &self,
         request_body: RequestBody,
     ) -> Pin<Box<dyn Stream<Item = Result<T, Error>> + Send>>;
 }
 
+/// HTTP(S) GraphQL client
 pub struct HttpClient {
     http_endpoint: Url,
     http: reqwest::Client,
 }
 
+/// WebSocket GraphQL client
 pub struct WsClient {
     ws: Mutex<GraphQLWebSocket>,
 }
 
+/// GraphQL errors
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    /// The error field of a GraphQL response.
     #[error("The response contains errors.")]
     GraphQL(Vec<GraphQLError>),
 
+    /// A HTTP error.
     #[error("An HTTP error occurred.")]
     Http(#[from] reqwest::Error),
 
+    /// A JSON decoding error.
     #[error("An error parsing JSON response occurred.")]
     Json(#[from] serde_json::Error),
 
+    /// A `graphql-ws` level error, which can be of any shape.
     #[error("The server replied with an error payload.")]
     Server(serde_json::Value),
 
+    /// A low-level WebSocket error.
     #[error("A WebSocket error occurred.")]
     WebSocket(#[from] tungstenite::Error),
 
+    /// The response contains `null` for both the `data` and `errors` fields.
     #[error("The response body is empty.")]
     Empty,
 }
@@ -79,7 +91,10 @@ impl WsClient {
         })
     }
 
-    fn sub_inner<T>(&self, request_body: RequestBody) -> impl Stream<Item = Result<T, Error>> + Send
+    fn sub_inner<T>(
+        &self,
+        request_body: RequestBody,
+    ) -> impl Stream<Item = Result<T, Error>> + Send
     where
         T: for<'de> Deserialize<'de> + Unpin + Send + 'static,
     {

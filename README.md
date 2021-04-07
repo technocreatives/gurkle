@@ -23,7 +23,7 @@ A fork of [graphql_client](https://github.com/graphql-rust/graphql-client) and c
 
 ## Usage
 
-- Install the CLI tool.
+- Install the CLI tool (`cargo install gurkle-cli`)
 - Run `gurkle generate --schema-path <your schema> path/to/operations/*.graphql`
 - This will generate a `mod.rs` in your current directory.
 

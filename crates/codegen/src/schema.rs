@@ -432,8 +432,8 @@ pub(crate) fn input_is_recursive_without_indirection(input_id: InputId, schema: 
     input.contains_type_without_indirection(input_id, schema)
 }
 
-impl std::convert::From<graphql_parser::schema::Document> for Schema {
-    fn from(ast: graphql_parser::schema::Document) -> Schema {
+impl std::convert::From<gurkle_parser::schema::Document> for Schema {
+    fn from(ast: gurkle_parser::schema::Document) -> Schema {
         graphql_parser_conversion::build_schema(ast)
     }
 }
@@ -446,10 +446,10 @@ impl std::convert::From<crate::introspection_response::IntrospectionResponse> fo
 
 pub(crate) fn resolve_field_type(
     schema: &Schema,
-    inner: &graphql_parser::schema::Type,
+    inner: &gurkle_parser::schema::Type,
 ) -> StoredFieldType {
     use crate::type_qualifiers::graphql_parser_depth;
-    use graphql_parser::schema::Type::*;
+    use gurkle_parser::schema::Type::*;
 
     let qualifiers_depth = graphql_parser_depth(inner);
     let mut qualifiers = Vec::with_capacity(qualifiers_depth);

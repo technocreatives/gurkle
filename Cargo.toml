@@ -3,6 +3,7 @@ members = [
     "crates/client",
     "crates/cli",
     "crates/codegen",
+    "crates/parser",
 
     # Example crates.
     "examples/*",

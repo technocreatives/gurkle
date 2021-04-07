@@ -3,8 +3,8 @@ fn schema_with_keywords_works() {
     use crate::{generated_module, schema::Schema, CodegenMode, GraphQLClientCodegenOptions};
 
     let query_string = include_str!("keywords_query.graphql");
-    let query = graphql_parser::parse_query(query_string).expect("Parse keywords query");
-    let schema = graphql_parser::parse_schema(include_str!("keywords_schema.graphql"))
+    let query = gurkle_parser::parse_query(query_string).expect("Parse keywords query");
+    let schema = gurkle_parser::parse_schema(include_str!("keywords_schema.graphql"))
         .expect("Parse keywords schema");
     let schema = Schema::from(schema);
 

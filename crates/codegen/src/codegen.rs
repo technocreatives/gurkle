@@ -235,12 +235,12 @@ fn generate_fragment_definitions<'a>(
 
 /// For default value constructors.
 fn graphql_parser_value_to_literal(
-    value: &graphql_parser::query::Value,
+    value: &gurkle_parser::query::Value,
     ty: TypeId,
     is_optional: bool,
     query: &BoundQuery<'_>,
 ) -> TokenStream {
-    use graphql_parser::query::Value;
+    use gurkle_parser::query::Value;
 
     let inner = match value {
         Value::Boolean(b) => {
@@ -288,7 +288,7 @@ fn graphql_parser_value_to_literal(
 
 /// For default value constructors.
 fn render_object_literal(
-    object_map: &BTreeMap<String, graphql_parser::query::Value>,
+    object_map: &BTreeMap<String, gurkle_parser::query::Value>,
     input_id: InputId,
     query: &BoundQuery<'_>,
 ) -> TokenStream {

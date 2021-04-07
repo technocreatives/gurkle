@@ -1,14 +1,14 @@
 use super::{Schema, StoredInputFieldType, TypeId};
 use crate::schema::resolve_field_type;
-use graphql_parser::schema::{self as parser, Definition, Document, TypeDefinition, UnionType};
+use gurkle_parser::schema::{self as parser, Definition, Document, TypeDefinition, UnionType};
 
-pub(super) fn build_schema(mut src: graphql_parser::schema::Document) -> super::Schema {
+pub(super) fn build_schema(mut src: gurkle_parser::schema::Document) -> super::Schema {
     let mut schema = Schema::new();
     convert(&mut src, &mut schema);
     schema
 }
 
-fn convert(src: &mut graphql_parser::schema::Document, schema: &mut Schema) {
+fn convert(src: &mut gurkle_parser::schema::Document, schema: &mut Schema) {
     populate_names_map(schema, &src.definitions);
 
     src.definitions
@@ -147,7 +147,7 @@ fn ingest_union(schema: &mut Schema, union: &mut UnionType) {
     schema.stored_unions.push(stored_union);
 }
 
-fn ingest_object(schema: &mut Schema, obj: &mut graphql_parser::schema::ObjectType) {
+fn ingest_object(schema: &mut Schema, obj: &mut gurkle_parser::schema::ObjectType) {
     let object_id = schema.find_type_id(&obj.name).as_object_id().unwrap();
     let mut field_ids = Vec::with_capacity(obj.fields.len());
 
@@ -176,7 +176,7 @@ fn ingest_object(schema: &mut Schema, obj: &mut graphql_parser::schema::ObjectTy
     schema.push_object(object);
 }
 
-fn ingest_scalar(schema: &mut Schema, scalar: &mut graphql_parser::schema::ScalarType) {
+fn ingest_scalar(schema: &mut Schema, scalar: &mut gurkle_parser::schema::ScalarType) {
     let name = std::mem::take(&mut scalar.name);
     let name_for_names = name.clone();
 
@@ -189,7 +189,7 @@ fn ingest_scalar(schema: &mut Schema, scalar: &mut graphql_parser::schema::Scala
         .insert(name_for_names, TypeId::Scalar(scalar_id));
 }
 
-fn ingest_enum(schema: &mut Schema, enm: &mut graphql_parser::schema::EnumType) {
+fn ingest_enum(schema: &mut Schema, enm: &mut gurkle_parser::schema::EnumType) {
     let enm = super::StoredEnum {
         name: std::mem::take(&mut enm.name),
         variants: enm
@@ -202,7 +202,7 @@ fn ingest_enum(schema: &mut Schema, enm: &mut graphql_parser::schema::EnumType) 
     schema.push_enum(enm);
 }
 
-fn ingest_interface(schema: &mut Schema, interface: &mut graphql_parser::schema::InterfaceType) {
+fn ingest_interface(schema: &mut Schema, interface: &mut gurkle_parser::schema::InterfaceType) {
     let interface_id = schema
         .find_type_id(&interface.name)
         .as_interface_id()
@@ -239,7 +239,7 @@ fn find_deprecation(directives: &[parser::Directive]) -> Option<Option<String>> 
                 .iter()
                 .find(|(name, _)| name == "reason")
                 .and_then(|(_, value)| match value {
-                    graphql_parser::query::Value::String(s) => Some(s.clone()),
+                    gurkle_parser::query::Value::String(s) => Some(s.clone()),
                     _ => None,
                 })
         })

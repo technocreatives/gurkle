@@ -6,7 +6,7 @@
 //!
 //! It is not meant to be used directly by users of the library.
 
-use graphql_parser::schema::parse_schema;
+use gurkle_parser::schema::parse_schema;
 use introspection_response::IntrospectionResponse;
 use proc_macro2::TokenStream;
 use quote::*;
@@ -77,7 +77,7 @@ pub fn generate_module_token_stream(
         .join("\n\n");
 
     // We need to qualify the query with the path to the crate it is part of
-    let query = graphql_parser::parse_query(&query_string)
+    let query = gurkle_parser::parse_query(&query_string)
         .map_err(|err| GeneralError(format!("Query parser error: {}", err)))?;
 
     let query = crate::query::resolve(&schema, &query)?;

@@ -52,7 +52,7 @@ pub(crate) struct VariableId(u32);
 
 pub(crate) fn resolve(
     schema: &Schema,
-    query: &graphql_parser::query::Document,
+    query: &gurkle_parser::query::Document,
 ) -> Result<Query, QueryValidationError> {
     let mut resolved_query: Query = Default::default();
 
@@ -61,10 +61,10 @@ pub(crate) fn resolve(
     // Then resolve the selections.
     for definition in &query.definitions {
         match definition {
-            graphql_parser::query::Definition::Fragment(fragment) => {
+            gurkle_parser::query::Definition::Fragment(fragment) => {
                 resolve_fragment(&mut resolved_query, schema, fragment)?
             }
-            graphql_parser::query::Definition::Operation(operation) => {
+            gurkle_parser::query::Definition::Operation(operation) => {
                 resolve_operation(&mut resolved_query, schema, operation)?
             }
         }
@@ -91,14 +91,14 @@ pub(crate) fn resolve(
 
 fn create_roots(
     resolved_query: &mut Query,
-    query: &graphql_parser::query::Document,
+    query: &gurkle_parser::query::Document,
     schema: &Schema,
 ) -> Result<(), QueryValidationError> {
     // First, give ids to all fragments and operations.
     for definition in &query.definitions {
         match definition {
-            graphql_parser::query::Definition::Fragment(fragment) => {
-                let graphql_parser::query::TypeCondition::On(on) = &fragment.type_condition;
+            gurkle_parser::query::Definition::Fragment(fragment) => {
+                let gurkle_parser::query::TypeCondition::On(on) = &fragment.type_condition;
                 resolved_query.fragments.push(ResolvedFragment {
                     name: fragment.name.clone(),
                     on: schema.find_type(on).ok_or_else(|| {
@@ -110,8 +110,8 @@ fn create_roots(
                     selection_set: Vec::new(),
                 });
             }
-            graphql_parser::query::Definition::Operation(
-                graphql_parser::query::OperationDefinition::Mutation(m),
+            gurkle_parser::query::Definition::Operation(
+                gurkle_parser::query::OperationDefinition::Mutation(m),
             ) => {
                 let on = schema.mutation_type().ok_or_else(|| {
                     QueryValidationError::new(
@@ -129,8 +129,8 @@ fn create_roots(
 
                 resolved_query.operations.push(resolved_operation);
             }
-            graphql_parser::query::Definition::Operation(
-                graphql_parser::query::OperationDefinition::Query(q),
+            gurkle_parser::query::Definition::Operation(
+                gurkle_parser::query::OperationDefinition::Query(q),
             ) => {
                 let on = schema.query_type();
                 let name = match q.name.as_ref() {
@@ -152,8 +152,8 @@ fn create_roots(
 
                 resolved_query.operations.push(resolved_operation);
             }
-            graphql_parser::query::Definition::Operation(
-                graphql_parser::query::OperationDefinition::Subscription(s),
+            gurkle_parser::query::Definition::Operation(
+                gurkle_parser::query::OperationDefinition::Subscription(s),
             ) => {
                 let on = schema.subscription_type().ok_or_else(|| {
                     QueryValidationError::new(
@@ -181,8 +181,8 @@ fn create_roots(
 
                 resolved_query.operations.push(resolved_operation);
             }
-            graphql_parser::query::Definition::Operation(
-                graphql_parser::query::OperationDefinition::SelectionSet(_),
+            gurkle_parser::query::Definition::Operation(
+                gurkle_parser::query::OperationDefinition::SelectionSet(_),
             ) => {
                 return Err(QueryValidationError::new(
                     crate::constants::SELECTION_SET_AT_ROOT.to_owned(),
@@ -197,9 +197,9 @@ fn create_roots(
 fn resolve_fragment(
     query: &mut Query,
     schema: &Schema,
-    fragment_definition: &graphql_parser::query::FragmentDefinition,
+    fragment_definition: &gurkle_parser::query::FragmentDefinition,
 ) -> Result<(), QueryValidationError> {
-    let graphql_parser::query::TypeCondition::On(on) = &fragment_definition.type_condition;
+    let gurkle_parser::query::TypeCondition::On(on) = &fragment_definition.type_condition;
     let on = schema.find_type(&on).ok_or_else(|| {
         QueryValidationError::new(format!(
             "Could not find type `{}` referenced by fragment `{}`",
@@ -230,13 +230,13 @@ fn resolve_fragment(
 fn resolve_union_selection(
     query: &mut Query,
     _union_id: UnionId,
-    selection_set: &graphql_parser::query::SelectionSet,
+    selection_set: &gurkle_parser::query::SelectionSet,
     parent: SelectionParent,
     schema: &Schema,
 ) -> Result<(), QueryValidationError> {
     for item in selection_set.items.iter() {
         match item {
-            graphql_parser::query::Selection::Field(field) => {
+            gurkle_parser::query::Selection::Field(field) => {
                 if field.name == TYPENAME_FIELD {
                     let id = query.push_selection(Selection::Typename, parent);
                     parent.add_to_selection_set(query, id);
@@ -247,11 +247,11 @@ fn resolve_union_selection(
                     )));
                 }
             }
-            graphql_parser::query::Selection::InlineFragment(inline_fragment) => {
+            gurkle_parser::query::Selection::InlineFragment(inline_fragment) => {
                 let selection_id = resolve_inline_fragment(query, schema, inline_fragment, parent)?;
                 parent.add_to_selection_set(query, selection_id);
             }
-            graphql_parser::query::Selection::FragmentSpread(fragment_spread) => {
+            gurkle_parser::query::Selection::FragmentSpread(fragment_spread) => {
                 let (fragment_id, _fragment) = query
                     .find_fragment(&fragment_spread.fragment_name)
                     .ok_or_else(|| {
@@ -274,13 +274,13 @@ fn resolve_union_selection(
 fn resolve_object_selection<'a>(
     query: &mut Query,
     object: &dyn crate::schema::ObjectLike,
-    selection_set: &graphql_parser::query::SelectionSet,
+    selection_set: &gurkle_parser::query::SelectionSet,
     parent: SelectionParent,
     schema: &'a Schema,
 ) -> Result<(), QueryValidationError> {
     for item in selection_set.items.iter() {
         match item {
-            graphql_parser::query::Selection::Field(field) => {
+            gurkle_parser::query::Selection::Field(field) => {
                 if field.name == TYPENAME_FIELD {
                     let id = query.push_selection(Selection::Typename, parent);
                     parent.add_to_selection_set(query, id);
@@ -316,12 +316,12 @@ fn resolve_object_selection<'a>(
 
                 parent.add_to_selection_set(query, id);
             }
-            graphql_parser::query::Selection::InlineFragment(inline) => {
+            gurkle_parser::query::Selection::InlineFragment(inline) => {
                 let selection_id = resolve_inline_fragment(query, schema, inline, parent)?;
 
                 parent.add_to_selection_set(query, selection_id);
             }
-            graphql_parser::query::Selection::FragmentSpread(fragment_spread) => {
+            gurkle_parser::query::Selection::FragmentSpread(fragment_spread) => {
                 let (fragment_id, _fragment) = query
                     .find_fragment(&fragment_spread.fragment_name)
                     .ok_or_else(|| {
@@ -344,7 +344,7 @@ fn resolve_object_selection<'a>(
 fn resolve_selection(
     ctx: &mut Query,
     on: TypeId,
-    selection_set: &graphql_parser::query::SelectionSet,
+    selection_set: &gurkle_parser::query::SelectionSet,
     parent: SelectionParent,
     schema: &Schema,
 ) -> Result<(), QueryValidationError> {
@@ -376,10 +376,10 @@ fn resolve_selection(
 fn resolve_inline_fragment(
     query: &mut Query,
     schema: &Schema,
-    inline_fragment: &graphql_parser::query::InlineFragment,
+    inline_fragment: &gurkle_parser::query::InlineFragment,
     parent: SelectionParent,
 ) -> Result<SelectionId, QueryValidationError> {
-    let graphql_parser::query::TypeCondition::On(on) = inline_fragment
+    let gurkle_parser::query::TypeCondition::On(on) = inline_fragment
         .type_condition
         .as_ref()
         .expect("missing type condition on inline fragment");
@@ -412,10 +412,10 @@ fn resolve_inline_fragment(
 fn resolve_operation(
     query: &mut Query,
     schema: &Schema,
-    operation: &graphql_parser::query::OperationDefinition,
+    operation: &gurkle_parser::query::OperationDefinition,
 ) -> Result<(), QueryValidationError> {
     match operation {
-        graphql_parser::query::OperationDefinition::Mutation(m) => {
+        gurkle_parser::query::OperationDefinition::Mutation(m) => {
             let on = schema.mutation_type().ok_or_else(|| {
                 QueryValidationError::new(
                     "Query contains a mutation operation, but the schema has no mutation type."
@@ -435,7 +435,7 @@ fn resolve_operation(
                 schema,
             )?;
         }
-        graphql_parser::query::OperationDefinition::Query(q) => {
+        gurkle_parser::query::OperationDefinition::Query(q) => {
             let on = schema.get_object(schema.query_type());
             let (id, _) = query.find_operation(q.name.as_ref().unwrap()).unwrap();
 
@@ -448,7 +448,7 @@ fn resolve_operation(
                 schema,
             )?;
         }
-        graphql_parser::query::OperationDefinition::Subscription(s) => {
+        gurkle_parser::query::OperationDefinition::Subscription(s) => {
             let on = schema.subscription_type().ok_or_else(|| QueryValidationError::new("Query contains a subscription operation, but the schema has no subscription type.".into()))?;
             let on = schema.get_object(on);
             let (id, _) = query.find_operation(s.name.as_ref().unwrap()).unwrap();
@@ -462,7 +462,7 @@ fn resolve_operation(
                 schema,
             )?;
         }
-        graphql_parser::query::OperationDefinition::SelectionSet(_) => {
+        gurkle_parser::query::OperationDefinition::SelectionSet(_) => {
             unreachable!("unnamed queries are not supported")
         }
     }
@@ -557,7 +557,7 @@ impl Query {
 pub(crate) struct ResolvedVariable {
     pub(crate) operation_id: OperationId,
     pub(crate) name: String,
-    pub(crate) default: Option<graphql_parser::query::Value>,
+    pub(crate) default: Option<gurkle_parser::query::Value>,
     pub(crate) r#type: StoredFieldType,
 }
 
@@ -627,7 +627,7 @@ impl UsedTypes {
 
 fn resolve_variables(
     query: &mut Query,
-    variables: &[graphql_parser::query::VariableDefinition],
+    variables: &[gurkle_parser::query::VariableDefinition],
     schema: &Schema,
     operation_id: OperationId,
 ) {

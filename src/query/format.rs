@@ -5,9 +5,7 @@ use crate::format::{Displayable, Formatter, Style, format_directives};
 use crate::query::ast::*;
 
 
-impl<'a, T: Text<'a>> Document<'a, T> 
-    where T: Text<'a>,
-{
+impl Document {
     /// Format a document according to style
     pub fn format(&self, style: &Style) -> String {
         let mut formatter = Formatter::new(style);
@@ -23,9 +21,7 @@ fn to_string<T: Displayable>(v: &T) -> String {
     formatter.into_string()
 }
 
-impl<'a, T: Text<'a>> Displayable for Document<'a, T> 
-    where T: Text<'a>,
-{
+impl Displayable for Document {
     fn display(&self, f: &mut Formatter) {
         for item in &self.definitions {
             item.display(f);
@@ -33,9 +29,7 @@ impl<'a, T: Text<'a>> Displayable for Document<'a, T>
     }
 }
 
-impl<'a, T: Text<'a>> Displayable for Definition<'a, T> 
-    where T: Text<'a>,
-{
+impl Displayable for Definition {
     fn display(&self, f: &mut Formatter) {
         match *self {
             Definition::Operation(ref op) => op.display(f),
@@ -44,9 +38,7 @@ impl<'a, T: Text<'a>> Displayable for Definition<'a, T>
     }
 }
 
-impl<'a, T: Text<'a>> Displayable for OperationDefinition<'a, T> 
-    where T: Text<'a>,
-{
+impl Displayable for OperationDefinition {
     fn display(&self, f: &mut Formatter) {
         match *self {
             OperationDefinition::SelectionSet(ref set) => set.display(f),
@@ -57,14 +49,12 @@ impl<'a, T: Text<'a>> Displayable for OperationDefinition<'a, T>
     }
 }
 
-impl<'a, T: Text<'a>> Displayable for FragmentDefinition<'a, T> 
-    where T: Text<'a>,
-{
+impl Displayable for FragmentDefinition {
     fn display(&self, f: &mut Formatter) {
         f.margin();
         f.indent();
         f.write("fragment ");
-        f.write(self.name.as_ref());
+        f.write(&self.name);
         f.write(" ");
         self.type_condition.display(f);
         format_directives(&self.directives, f);
@@ -77,9 +67,7 @@ impl<'a, T: Text<'a>> Displayable for FragmentDefinition<'a, T>
     }
 }
 
-impl<'a, T: Text<'a>> Displayable for SelectionSet<'a, T> 
-    where T: Text<'a>,
-{
+impl Displayable for SelectionSet {
     fn display(&self, f: &mut Formatter) {
         f.margin();
         f.indent();
@@ -91,9 +79,7 @@ impl<'a, T: Text<'a>> Displayable for SelectionSet<'a, T>
     }
 }
 
-impl<'a, T: Text<'a>> Displayable for Selection<'a, T> 
-    where T: Text<'a>,
-{
+impl Displayable for Selection {
     fn display(&self, f: &mut Formatter) {
         match *self {
             Selection::Field(ref fld) => fld.display(f),
@@ -103,17 +89,15 @@ impl<'a, T: Text<'a>> Displayable for Selection<'a, T>
     }
 }
 
-fn format_arguments<'a, T: Text<'a>>(arguments: &[(T::Value, Value<'a, T>)], f: &mut Formatter) 
-    where T: Text<'a>,
-{
+fn format_arguments(arguments: &[(String, Value)], f: &mut Formatter) {
     if !arguments.is_empty() {
         f.write("(");
-        f.write(arguments[0].0.as_ref());
+        f.write(&arguments[0].0);
         f.write(": ");
         arguments[0].1.display(f);
         for arg in &arguments[1..] {
             f.write(", ");
-            f.write(arg.0.as_ref());
+            f.write(&arg.0);
             f.write(": ");
             arg.1.display(f);
         }
@@ -121,16 +105,14 @@ fn format_arguments<'a, T: Text<'a>>(arguments: &[(T::Value, Value<'a, T>)], f: 
     }
 }
 
-impl<'a, T: Text<'a>> Displayable for Field<'a, T> 
-    where T: Text<'a>,
-{
+impl Displayable for Field {
     fn display(&self, f: &mut Formatter) {
         f.indent();
         if let Some(ref alias) = self.alias {
-            f.write(alias.as_ref());
+            f.write(alias);
             f.write(": ");
         }
-        f.write(self.name.as_ref());
+        f.write(&self.name);
         format_arguments(&self.arguments, f);
         format_directives(&self.directives, f);
         if !self.selection_set.items.is_empty() {
@@ -146,16 +128,14 @@ impl<'a, T: Text<'a>> Displayable for Field<'a, T>
     }
 }
 
-impl<'a, T: Text<'a>> Displayable for Query<'a, T> 
-    where T: Text<'a>,
-{
+impl Displayable for Query {
     fn display(&self, f: &mut Formatter) {
         f.margin();
         f.indent();
         f.write("query");
         if let Some(ref name) = self.name {
             f.write(" ");
-            f.write(name.as_ref());
+            f.write(name);
             if !self.variable_definitions.is_empty() {
                 f.write("(");
                 self.variable_definitions[0].display(f);
@@ -176,16 +156,14 @@ impl<'a, T: Text<'a>> Displayable for Query<'a, T>
     }
 }
 
-impl<'a, T: Text<'a>> Displayable for Mutation<'a, T> 
-    where T: Text<'a>,
-{
+impl Displayable for Mutation {
     fn display(&self, f: &mut Formatter) {
         f.margin();
         f.indent();
         f.write("mutation");
         if let Some(ref name) = self.name {
             f.write(" ");
-            f.write(name.as_ref());
+            f.write(name);
             if !self.variable_definitions.is_empty() {
                 f.write("(");
                 for var in &self.variable_definitions {
@@ -204,16 +182,14 @@ impl<'a, T: Text<'a>> Displayable for Mutation<'a, T>
     }
 }
 
-impl<'a, T: Text<'a>> Displayable for Subscription<'a, T> 
-    where T: Text<'a>,
-{
+impl Displayable for Subscription {
     fn display(&self, f: &mut Formatter) {
         f.margin();
         f.indent();
         f.write("subscription");
         if let Some(ref name) = self.name {
             f.write(" ");
-            f.write(name.as_ref());
+            f.write(name);
             if !self.variable_definitions.is_empty() {
                 f.write("(");
                 for var in &self.variable_definitions {
@@ -232,12 +208,10 @@ impl<'a, T: Text<'a>> Displayable for Subscription<'a, T>
     }
 }
 
-impl<'a, T: Text<'a>> Displayable for VariableDefinition<'a, T> 
-    where T: Text<'a>,
-{
+impl Displayable for VariableDefinition {
     fn display(&self, f: &mut Formatter) {
         f.write("$");
-        f.write(self.name.as_ref());
+        f.write(&self.name);
         f.write(": ");
         self.var_type.display(f);
         if let Some(ref default) = self.default_value {
@@ -247,12 +221,10 @@ impl<'a, T: Text<'a>> Displayable for VariableDefinition<'a, T>
     }
 }
 
-impl<'a, T: Text<'a>> Displayable for Type<'a, T> 
-    where T: Text<'a>,
-{
+impl Displayable for Type {
     fn display(&self, f: &mut Formatter) {
         match *self {
-            Type::NamedType(ref name) => f.write(name.as_ref()),
+            Type::NamedType(ref name) => f.write(name),
             Type::ListType(ref typ) => {
                 f.write("[");
                 typ.display(f);
@@ -266,19 +238,17 @@ impl<'a, T: Text<'a>> Displayable for Type<'a, T>
     }
 }
 
-impl<'a, T: Text<'a>> Displayable for Value<'a, T> 
-    where T: Text<'a>,
-{
+impl Displayable for Value {
     fn display(&self, f: &mut Formatter) {
         match *self {
-            Value::Variable(ref name) => { f.write("$"); f.write(name.as_ref()); },
+            Value::Variable(ref name) => { f.write("$"); f.write(name); },
             Value::Int(ref num) => f.write(&format!("{}", num.0)),
             Value::Float(val) => f.write(&format!("{}", val)),
             Value::String(ref val) => f.write_quoted(val),
             Value::Boolean(true) => f.write("true"),
             Value::Boolean(false) => f.write("false"),
             Value::Null => f.write("null"),
-            Value::Enum(ref name) => f.write(name.as_ref()),
+            Value::Enum(ref name) => f.write(name),
             Value::List(ref items) => {
                 f.write("[");
                 if !items.is_empty() {
@@ -299,7 +269,7 @@ impl<'a, T: Text<'a>> Displayable for Value<'a, T>
                     } else {
                         f.write(", ");
                     }
-                    f.write(name.as_ref());
+                    f.write(name);
                     f.write(": ");
                     value.display(f);
                 }
@@ -309,9 +279,7 @@ impl<'a, T: Text<'a>> Displayable for Value<'a, T>
     }
 }
 
-impl<'a, T: Text<'a>> Displayable for InlineFragment<'a, T> 
-    where T: Text<'a>,
-{
+impl Displayable for InlineFragment {
     fn display(&self, f: &mut Formatter) {
         f.indent();
         f.write("...");
@@ -329,44 +297,37 @@ impl<'a, T: Text<'a>> Displayable for InlineFragment<'a, T>
     }
 }
 
-impl<'a, T: Text<'a>> Displayable for TypeCondition<'a, T> 
-    where T: Text<'a>,
-{
+impl Displayable for TypeCondition {
     fn display(&self, f: &mut Formatter) {
         match *self {
             TypeCondition::On(ref name) => {
                 f.write("on ");
-                f.write(name.as_ref());
+                f.write(name);
             }
         }
     }
 }
 
-impl<'a, T: Text<'a>> Displayable for FragmentSpread<'a, T> 
-    where T: Text<'a>,
-{
+impl Displayable for FragmentSpread {
     fn display(&self, f: &mut Formatter) {
         f.indent();
         f.write("...");
-        f.write(self.fragment_name.as_ref());
+        f.write(&self.fragment_name);
         format_directives(&self.directives, f);
         f.endline();
     }
 }
 
-impl<'a, T: Text<'a>> Displayable for Directive<'a, T> 
-    where T: Text<'a>,
-{
+impl Displayable for Directive {
     fn display(&self, f: &mut Formatter) {
         f.write("@");
-        f.write(self.name.as_ref());
-        format_arguments(self.arguments.as_slice(), f);
+        f.write(&self.name);
+        format_arguments(&self.arguments, f);
     }
 }
 
 
 impl_display!(
-    'a 
     Document,
     Definition,
     OperationDefinition,
@@ -384,3 +345,4 @@ impl_display!(
     FragmentSpread,
     Directive,
 );
+

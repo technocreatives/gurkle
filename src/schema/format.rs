@@ -1,14 +1,11 @@
 use std::fmt;
 
 use crate::format::{Displayable, Formatter, Style, format_directives};
-use crate::common::Text;
 
 use crate::schema::ast::*;
 
 
-impl<'a, T> Document<'a, T> 
-    where T: Text<'a>,
-{
+impl Document {
     /// Format a document according to style
     pub fn format(&self, style: &Style) -> String {
         let mut formatter = Formatter::new(style);
@@ -24,18 +21,16 @@ fn to_string<T: Displayable>(v: &T) -> String {
     formatter.into_string()
 }
 
-fn description<'a>(description: &Option<String>, f: &mut Formatter) {
+fn description(description: &Option<String>, f: &mut Formatter) {
     if let Some(ref descr) = *description {
         f.indent();
-        f.write_quoted(descr.as_ref());
+        f.write_quoted(descr);
         f.endline();
     }
 }
 
 
-impl<'a, T> Displayable for Document<'a, T> 
-    where T: Text<'a>,
-{
+impl Displayable for Document {
     fn display(&self, f: &mut Formatter) {
         for item in &self.definitions {
             item.display(f);
@@ -43,9 +38,7 @@ impl<'a, T> Displayable for Document<'a, T>
     }
 }
 
-impl<'a, T> Displayable for Definition<'a, T> 
-    where T: Text<'a>,
-{
+impl Displayable for Definition {
     fn display(&self, f: &mut Formatter) {
         f.margin();
         match *self {
@@ -57,9 +50,7 @@ impl<'a, T> Displayable for Definition<'a, T>
     }
 }
 
-impl<'a, T> Displayable for SchemaDefinition<'a, T> 
-    where T: Text<'a>,
-{
+impl Displayable for SchemaDefinition {
     fn display(&self, f: &mut Formatter) {
         f.indent();
         f.write("schema");
@@ -69,28 +60,26 @@ impl<'a, T> Displayable for SchemaDefinition<'a, T>
         if let Some(ref q) = self.query {
             f.indent();
             f.write("query: ");
-            f.write(q.as_ref());
+            f.write(q);
             f.endline();
         }
         if let Some(ref m) = self.mutation {
             f.indent();
             f.write("mutation: ");
-            f.write(m.as_ref());
+            f.write(m);
             f.endline();
         }
         if let Some(ref s) = self.subscription {
             f.indent();
             f.write("subscription: ");
-            f.write(s.as_ref());
+            f.write(s);
             f.endline();
         }
         f.end_block();
     }
 }
 
-impl<'a, T> Displayable for TypeDefinition<'a, T> 
-    where T: Text<'a>,
-{
+impl Displayable for TypeDefinition {
     fn display(&self, f: &mut Formatter) {
         match *self {
             TypeDefinition::Scalar(ref s) => s.display(f),
@@ -103,34 +92,28 @@ impl<'a, T> Displayable for TypeDefinition<'a, T>
     }
 }
 
-impl<'a, T> Displayable for ScalarType<'a, T> 
-    where T: Text<'a>,
-{
+impl Displayable for ScalarType {
     fn display(&self, f: &mut Formatter) {
         description(&self.description, f);
         f.indent();
         f.write("scalar ");
-        f.write(self.name.as_ref());
+        f.write(&self.name);
         format_directives(&self.directives, f);
         f.endline();
     }
 }
 
-impl<'a, T> Displayable for ScalarTypeExtension<'a, T> 
-    where T: Text<'a>,
-{
+impl Displayable for ScalarTypeExtension {
     fn display(&self, f: &mut Formatter) {
         f.indent();
         f.write("extend scalar ");
-        f.write(self.name.as_ref());
+        f.write(&self.name);
         format_directives(&self.directives, f);
         f.endline();
     }
 }
 
-fn format_fields<'a, T>(fields: &[Field<'a, T>], f: &mut Formatter) 
-    where T: Text<'a>,
-{
+fn format_fields(fields: &[Field], f: &mut Formatter) {
     if !fields.is_empty() {
         f.write(" ");
         f.start_block();
@@ -143,20 +126,18 @@ fn format_fields<'a, T>(fields: &[Field<'a, T>], f: &mut Formatter)
     }
 }
 
-impl<'a, T> Displayable for ObjectType<'a, T> 
-    where T: Text<'a>,
-{
+impl Displayable for ObjectType {
     fn display(&self, f: &mut Formatter) {
         description(&self.description, f);
         f.indent();
         f.write("type ");
-        f.write(self.name.as_ref());
+        f.write(&self.name);
         if !self.implements_interfaces.is_empty() {
             f.write(" implements ");
-            f.write(self.implements_interfaces[0].as_ref());
+            f.write(&self.implements_interfaces[0]);
             for name in &self.implements_interfaces[1..] {
                 f.write(" & ");
-                f.write(name.as_ref());
+                f.write(name);
             }
         }
         format_directives(&self.directives, f);
@@ -164,19 +145,17 @@ impl<'a, T> Displayable for ObjectType<'a, T>
     }
 }
 
-impl<'a, T> Displayable for ObjectTypeExtension<'a, T> 
-    where T: Text<'a>,
-{
+impl Displayable for ObjectTypeExtension {
     fn display(&self, f: &mut Formatter) {
         f.indent();
         f.write("extend type ");
-        f.write(self.name.as_ref());
+        f.write(&self.name);
         if !self.implements_interfaces.is_empty() {
             f.write(" implements ");
-            f.write(self.implements_interfaces[0].as_ref());
+            f.write(&self.implements_interfaces[0]);
             for name in &self.implements_interfaces[1..] {
                 f.write(" & ");
-                f.write(name.as_ref());
+                f.write(name);
             }
         }
         format_directives(&self.directives, f);
@@ -184,15 +163,13 @@ impl<'a, T> Displayable for ObjectTypeExtension<'a, T>
     }
 }
 
-impl<'a, T> Displayable for InputValue<'a, T> 
-    where T: Text<'a>,
-{
+impl Displayable for InputValue {
     fn display(&self, f: &mut Formatter) {
         if let Some(ref descr) = self.description {
-            f.write_quoted(descr.as_ref());
+            f.write_quoted(descr);
             f.write(" ");
         }
-        f.write(self.name.as_ref());
+        f.write(&self.name);
         f.write(": ");
         self.value_type.display(f);
         if let Some(ref def) = self.default_value {
@@ -203,9 +180,7 @@ impl<'a, T> Displayable for InputValue<'a, T>
     }
 }
 
-fn format_arguments<'a, T>(arguments: &[InputValue<'a, T>], f: &mut Formatter) 
-    where T: Text<'a>,
-{
+fn format_arguments(arguments: &[InputValue], f: &mut Formatter) {
     if !arguments.is_empty() {
         f.write("(");
         arguments[0].display(f);
@@ -217,13 +192,11 @@ fn format_arguments<'a, T>(arguments: &[InputValue<'a, T>], f: &mut Formatter)
     }
 }
 
-impl<'a, T> Displayable for Field<'a, T> 
-    where T: Text<'a>,
-{
+impl Displayable for Field {
     fn display(&self, f: &mut Formatter) {
         description(&self.description, f);
         f.indent();
-        f.write(self.name.as_ref());
+        f.write(&self.name);
         format_arguments(&self.arguments, f);
         f.write(": ");
         self.field_type.display(f);
@@ -232,80 +205,70 @@ impl<'a, T> Displayable for Field<'a, T>
     }
 }
 
-impl<'a, T> Displayable for InterfaceType<'a, T> 
-    where T: Text<'a>,
-{
+impl Displayable for InterfaceType {
     fn display(&self, f: &mut Formatter) {
         description(&self.description, f);
         f.indent();
         f.write("interface ");
-        f.write(self.name.as_ref());
+        f.write(&self.name);
         format_directives(&self.directives, f);
         format_fields(&self.fields, f);
     }
 }
 
-impl<'a, T> Displayable for InterfaceTypeExtension<'a, T> 
-    where T: Text<'a>,
-{
+impl Displayable for InterfaceTypeExtension {
     fn display(&self, f: &mut Formatter) {
         f.indent();
         f.write("extend interface ");
-        f.write(self.name.as_ref());
+        f.write(&self.name);
         format_directives(&self.directives, f);
         format_fields(&self.fields, f);
     }
 }
 
-impl<'a, T> Displayable for UnionType<'a, T> 
-    where T: Text<'a>,
-{
+impl Displayable for UnionType {
     fn display(&self, f: &mut Formatter) {
         description(&self.description, f);
         f.indent();
         f.write("union ");
-        f.write(self.name.as_ref());
+        f.write(&self.name);
         format_directives(&self.directives, f);
         if !self.types.is_empty() {
             f.write(" = ");
-            f.write(self.types[0].as_ref());
+            f.write(&self.types[0]);
             for typ in &self.types[1..] {
                 f.write(" | ");
-                f.write(typ.as_ref());
+                f.write(typ);
             }
         }
         f.endline();
     }
 }
 
-impl<'a, T> Displayable for UnionTypeExtension<'a, T> 
-    where T: Text<'a>,
-{
+impl Displayable for UnionTypeExtension {
     fn display(&self, f: &mut Formatter) {
         f.indent();
         f.write("extend union ");
-        f.write(self.name.as_ref());
+        f.write(&self.name);
         format_directives(&self.directives, f);
         if !self.types.is_empty() {
             f.write(" = ");
-            f.write(self.types[0].as_ref());
+            f.write(&self.types[0]);
             for typ in &self.types[1..] {
                 f.write(" | ");
-                f.write(typ.as_ref());
+                f.write(typ);
             }
         }
         f.endline();
     }
 }
 
-impl<'a, T> Displayable for EnumType<'a, T> 
-    where T: Text<'a>,
-{
+impl Displayable for EnumType {
     fn display(&self, f: &mut Formatter) {
         description(&self.description, f);
         f.indent();
         f.write("enum ");
-        f.write(self.name.as_ref());
+        f.write(&self.name);
         format_directives(&self.directives, f);
         if !self.values.is_empty() {
             f.write(" ");
@@ -313,10 +276,10 @@ impl<'a, T> Displayable for EnumType<'a, T>
             for val in &self.values {
                 f.indent();
                 if let Some(ref descr) = val.description {
-                    f.write_quoted(descr.as_ref());
+                    f.write_quoted(descr);
                     f.write(" ");
                 }
-                f.write(val.name.as_ref());
+                f.write(&val.name);
                 format_directives(&val.directives, f);
                 f.endline();
             }
@@ -327,13 +290,11 @@ impl<'a, T> Displayable for EnumType<'a, T>
     }
 }
 
-impl<'a, T> Displayable for EnumTypeExtension<'a, T> 
-    where T: Text<'a>,
-{
+impl Displayable for EnumTypeExtension {
     fn display(&self, f: &mut Formatter) {
         f.indent();
         f.write("extend enum ");
-        f.write(self.name.as_ref());
+        f.write(&self.name);
         format_directives(&self.directives, f);
         if !self.values.is_empty() {
             f.write(" ");
@@ -341,10 +302,10 @@ impl<'a, T> Displayable for EnumTypeExtension<'a, T>
             for val in &self.values {
                 f.indent();
                 if let Some(ref descr) = val.description {
-                    f.write_quoted(descr.as_ref());
+                    f.write_quoted(descr);
                     f.write(" ");
                 }
-                f.write(val.name.as_ref());
+                f.write(&val.name);
                 format_directives(&val.directives, f);
                 f.endline();
             }
@@ -355,9 +316,7 @@ impl<'a, T> Displayable for EnumTypeExtension<'a, T>
     }
 }
 
-fn format_inputs<'a, T>(fields: &[InputValue<'a, T>], f: &mut Formatter) 
-    where T: Text<'a>,
-{
+fn format_inputs(fields: &[InputValue], f: &mut Formatter) {
     if !fields.is_empty() {
         f.write(" ");
         f.start_block();
@@ -372,34 +331,28 @@ fn format_inputs<'a, T>(fields: &[InputValue<'a, T>], f: &mut Formatter)
     }
 }
 
-impl<'a, T> Displayable for InputObjectType<'a, T> 
-    where T: Text<'a>,
-{
+impl Displayable for InputObjectType {
     fn display(&self, f: &mut Formatter) {
         description(&self.description, f);
         f.indent();
         f.write("input ");
-        f.write(self.name.as_ref());
+        f.write(&self.name);
         format_directives(&self.directives, f);
         format_inputs(&self.fields, f);
     }
 }
 
-impl<'a, T> Displayable for InputObjectTypeExtension<'a, T> 
-    where T: Text<'a>,
-{
+impl Displayable for InputObjectTypeExtension {
     fn display(&self, f: &mut Formatter) {
         f.indent();
         f.write("extend input ");
-        f.write(self.name.as_ref());
+        f.write(&self.name);
         format_directives(&self.directives, f);
         format_inputs(&self.fields, f);
     }
 }
 
-impl<'a, T> Displayable for TypeExtension<'a, T> 
-    where T: Text<'a>,
-{
+impl Displayable for TypeExtension {
     fn display(&self, f: &mut Formatter) {
         match *self {
             TypeExtension::Scalar(ref s) => s.display(f),
@@ -412,14 +365,12 @@ impl<'a, T> Displayable for TypeExtension<'a, T>
     }
 }
 
-impl<'a, T> Displayable for DirectiveDefinition<'a, T> 
-    where T: Text<'a>,
-{
+impl Displayable for DirectiveDefinition {
     fn display(&self, f: &mut Formatter) {
         description(&self.description, f);
         f.indent();
         f.write("directive @");
-        f.write(self.name.as_ref());
+        f.write(&self.name);
         format_arguments(&self.arguments, f);
         if self.repeatable {
             f.write(" repeatable");
@@ -441,7 +392,6 @@ impl<'a, T> Displayable for DirectiveDefinition<'a, T>
 }
 
 impl_display!(
-    'a 
     Document,
     Definition,
     SchemaDefinition,
@@ -463,3 +413,4 @@ impl_display!(
     InputObjectTypeExtension,
     DirectiveDefinition,
 );
+

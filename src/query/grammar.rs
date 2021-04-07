@@ -8,14 +8,13 @@ use crate::helpers::{punct, ident, name};
 use crate::query::error::{ParseError};
 use crate::query::ast::*;
 
-pub fn field<'a, S>(input: &mut TokenStream<'a>)
-    -> ParseResult<Field<'a, S>, TokenStream<'a>>
-    where S: Text<'a>
+pub fn field<'a>(input: &mut TokenStream<'a>)
+    -> ParseResult<Field, TokenStream<'a>>
 {
     (
         position(),
-        name::<'a, S>(),
-        optional(punct(":").with(name::<'a, S>())),
+        name(),
+        optional(punct(":").with(name())),
         parser(arguments),
         parser(directives),
         optional(parser(selection_set)),
@@ -37,14 +36,13 @@ pub fn field<'a, S>(input: &mut TokenStream<'a>)
     .parse_stream(input)
 }
 
-pub fn selection<'a, S>(input: &mut TokenStream<'a>)
-    -> ParseResult<Selection<'a, S>, TokenStream<'a>>
-    where S: Text<'a>
+pub fn selection<'a>(input: &mut TokenStream<'a>)
+    -> ParseResult<Selection, TokenStream<'a>>
 {
     parser(field).map(Selection::Field)
     .or(punct("...").with((
                 position(),
-                optional(ident("on").with(name::<'a, S>()).map(TypeCondition::On)),
+                optional(ident("on").with(name()).map(TypeCondition::On)),
                 parser(directives),
                 parser(selection_set),
             ).map(|(position, type_condition, directives, selection_set)| {
@@ -53,7 +51,7 @@ pub fn selection<'a, S>(input: &mut TokenStream<'a>)
             })
             .map(Selection::InlineFragment)
         .or((position(),
-             name::<'a, S>(),
+             name(),
              parser(directives),
             ).map(|(position, fragment_name, directives)| {
                 FragmentSpread { position, fragment_name, directives }
@@ -63,9 +61,8 @@ pub fn selection<'a, S>(input: &mut TokenStream<'a>)
     .parse_stream(input)
 }
 
-pub fn selection_set<'a, S>(input: &mut TokenStream<'a>)
-    -> ParseResult<SelectionSet<'a, S>, TokenStream<'a>>
-    where S: Text<'a>,
+pub fn selection_set<'a>(input: &mut TokenStream<'a>)
+    -> ParseResult<SelectionSet, TokenStream<'a>>
 {
     (
         position().skip(punct("{")),
@@ -75,9 +72,8 @@ pub fn selection_set<'a, S>(input: &mut TokenStream<'a>)
     .parse_stream(input)
 }
 
-pub fn query<'a, T: Text<'a>>(input: &mut TokenStream<'a>)
-    -> ParseResult<Query<'a, T>, TokenStream<'a>>
-    where T: Text<'a>,
+pub fn query<'a>(input: &mut TokenStream<'a>)
+    -> ParseResult<Query, TokenStream<'a>>
 {
     position()
     .skip(ident("query"))
@@ -90,25 +86,23 @@ pub fn query<'a, T: Text<'a>>(input: &mut TokenStream<'a>)
 }
 
 /// A set of attributes common to a Query and a Mutation
-#[allow(type_alias_bounds)]
-type OperationCommon<'a, T: Text<'a>> = (
-    Option<T::Value>,
-    Vec<VariableDefinition<'a, T>>,
-    Vec<Directive<'a, T>>,
-    SelectionSet<'a, T>,
+type OperationCommon = (
+    Option<String>,
+    Vec<VariableDefinition>,
+    Vec<Directive>,
+    SelectionSet,
 );
 
-pub fn operation_common<'a, T: Text<'a>>(input: &mut TokenStream<'a>)
-    -> ParseResult<OperationCommon<'a, T>, TokenStream<'a>>
-    where T: Text<'a>,
+pub fn operation_common<'a>(input: &mut TokenStream<'a>)
+    -> ParseResult<OperationCommon, TokenStream<'a>>
 {
-    optional(name::<'a, T>())
+    optional(name())
     .and(optional(
         punct("(")
         .with(many1(
             (
                 position(),
-                punct("$").with(name::<'a, T>()).skip(punct(":")),
+                punct("$").with(name()).skip(punct(":")),
                 parser(parse_type),
                 optional(
                     punct("=")
@@ -126,9 +120,8 @@ pub fn operation_common<'a, T: Text<'a>>(input: &mut TokenStream<'a>)
     .parse_stream(input)
 }
 
-pub fn mutation<'a, T: Text<'a>>(input: &mut TokenStream<'a>)
-    -> ParseResult<Mutation<'a, T>, TokenStream<'a>>
-    where T: Text<'a>,
+pub fn mutation<'a>(input: &mut TokenStream<'a>)
+    -> ParseResult<Mutation, TokenStream<'a>>
 {
     position()
     .skip(ident("mutation"))
@@ -140,9 +133,8 @@ pub fn mutation<'a, T: Text<'a>>(input: &mut TokenStream<'a>)
     .parse_stream(input)
 }
 
-pub fn subscription<'a, T: Text<'a>>(input: &mut TokenStream<'a>)
-    -> ParseResult<Subscription<'a, T>, TokenStream<'a>>
-    where T: Text<'a>,
+pub fn subscription<'a>(input: &mut TokenStream<'a>)
+    -> ParseResult<Subscription, TokenStream<'a>>
 {
     position()
     .skip(ident("subscription"))
@@ -154,9 +146,8 @@ pub fn subscription<'a, T: Text<'a>>(input: &mut TokenStream<'a>)
     .parse_stream(input)
 }
 
-pub fn operation_definition<'a, S>(input: &mut TokenStream<'a>)
-    -> ParseResult<OperationDefinition<'a, S>, TokenStream<'a>>
-    where S: Text<'a>,
+pub fn operation_definition<'a>(input: &mut TokenStream<'a>)
+    -> ParseResult<OperationDefinition, TokenStream<'a>>
 {
     parser(selection_set).map(OperationDefinition::SelectionSet)
     .or(parser(query).map(OperationDefinition::Query))
@@ -165,14 +156,13 @@ pub fn operation_definition<'a, S>(input: &mut TokenStream<'a>)
     .parse_stream(input)
 }
 
-pub fn fragment_definition<'a, T: Text<'a>>(input: &mut TokenStream<'a>)
-    -> ParseResult<FragmentDefinition<'a, T>, TokenStream<'a>>
-    where T: Text<'a>,
+pub fn fragment_definition<'a>(input: &mut TokenStream<'a>)
+    -> ParseResult<FragmentDefinition, TokenStream<'a>>
 {
     (
         position().skip(ident("fragment")),
-        name::<'a, T>(),
-        ident("on").with(name::<'a, T>()).map(TypeCondition::On),
+        name(),
+        ident("on").with(name()).map(TypeCondition::On),
         parser(directives),
         parser(selection_set)
     ).map(|(position, name, type_condition, directives, selection_set)| {
@@ -183,9 +173,8 @@ pub fn fragment_definition<'a, T: Text<'a>>(input: &mut TokenStream<'a>)
     .parse_stream(input)
 }
 
-pub fn definition<'a, S>(input: &mut TokenStream<'a>)
-    -> ParseResult<Definition<'a, S>, TokenStream<'a>>
-    where S: Text<'a>,
+pub fn definition<'a>(input: &mut TokenStream<'a>)
+    -> ParseResult<Definition, TokenStream<'a>>
 {
     parser(operation_definition).map(Definition::Operation)
     .or(parser(fragment_definition).map(Definition::Fragment))
@@ -193,9 +182,7 @@ pub fn definition<'a, S>(input: &mut TokenStream<'a>)
 }
 
 /// Parses a piece of query language and returns an AST
-pub fn parse_query<'a, S>(s: &'a str) -> Result<Document<'a, S>, ParseError> 
-    where S: Text<'a>,
-{
+pub fn parse_query(s: &str) -> Result<Document, ParseError> {
     let mut tokens = TokenStream::new(s);
     let (doc, _) = many1(parser(definition))
         .map(|d| Document { definitions: d })
@@ -208,7 +195,7 @@ pub fn parse_query<'a, S>(s: &'a str) -> Result<Document<'a, S>, ParseError>
 
 /// Parses a single ExecutableDefinition and returns an AST as well as the
 /// remainder of the input which is unparsed
-pub fn consume_definition<'a, S>(s: &'a str) -> Result<(Definition<'a, S>, &'a str), ParseError> where S: Text<'a> {
+pub fn consume_definition<'a>(s: &'a str) -> Result<(Definition, &'a str), ParseError> {
     let tokens = TokenStream::new(s);
     let (doc, tokens) = parser(definition).parse(tokens)?;
 
@@ -221,8 +208,8 @@ mod test {
     use crate::query::grammar::*;
     use super::{parse_query, consume_definition};
 
-    fn ast(s: &str) -> Document<String> {
-        parse_query::<String>(&s).unwrap().to_owned()
+    fn ast(s: &str) -> Document {
+        parse_query(s).unwrap()
     }
 
     #[test]
@@ -268,11 +255,11 @@ mod test {
                                     alias: None,
                                     name: "a".into(),
                                     arguments: vec![
-                                        ("t".into(),
+                                        ("t".to_string(),
                                             Value::Boolean(true)),
-                                        ("f".into(),
+                                        ("f".to_string(),
                                             Value::Boolean(false)),
-                                        ("n".into(),
+                                        ("n".to_string(),
                                             Value::Null),
                                     ],
                                     directives: Vec::new(),
@@ -302,14 +289,14 @@ mod test {
 
     #[test]
     fn consume_single_query() {
-        let (query, remainder) = consume_definition::<String>("query { a } query { b }").unwrap();
+        let (query, remainder) = consume_definition("query { a } query { b }").unwrap();
         assert!(matches!(query, Definition::Operation(_)));
         assert_eq!(remainder, "query { b }");
     }
 
     #[test]
     fn consume_full_text() {
-        let (query, remainder) = consume_definition::<String>("query { a }").unwrap();
+        let (query, remainder) = consume_definition("query { a }").unwrap();
         assert!(matches!(query, Definition::Operation(_)));
         assert_eq!(remainder, "");
     }
@@ -317,22 +304,23 @@ mod test {
     #[test]
     fn consume_single_query_preceding_non_graphql() {
         let (query, remainder) =
-            consume_definition::<String>("query { a } where a > 1 => 10.0").unwrap();
+            consume_definition("query { a } where a > 1 => 10.0").unwrap();
         assert!(matches!(query, Definition::Operation(_)));
         assert_eq!(remainder, "where a > 1 => 10.0");
     }
 
     #[test]
     fn consume_fails_without_operation() {
-        let err = consume_definition::<String>("where a > 1 => 10.0")
+        let err = consume_definition("where a > 1 => 10.0")
             .expect_err("Expected parse to fail with an error");
         let err = format!("{}", err);
         assert_eq!(err, "query parse error: Parse error at 1:1\nUnexpected `where[Name]`\nExpected `{`, `query`, `mutation`, `subscription` or `fragment`\n");
     }
   
+    #[test]
     fn recursion_too_deep() {
         let query = format!("{}(b: {}{}){}", "{ a".repeat(30), "[".repeat(25), "]".repeat(25),  "}".repeat(30));
-        let result = parse_query::<&str>(&query);
+        let result = parse_query(&query);
         let err = format!("{}", result.unwrap_err());
         assert_eq!(&err, "query parse error: Parse error at 1:114\nExpected `]`\nRecursion limit exceeded\n")
     }

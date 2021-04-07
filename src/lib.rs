@@ -23,8 +23,8 @@
 //! # extern crate graphql_parser;
 //! use graphql_parser::query::{parse_query, ParseError};
 //!
-//! # fn parse() -> Result<(), ParseError> {
-//! let ast = parse_query::<&str>("query MyQuery { field1, field2 }")?;
+//! # fn parse() -> Result<(), Box<dyn std::error::Error>> {
+//! let ast = parse_query("query MyQuery { field1, field2 }")?;
 //! // Format canonical representation
 //! assert_eq!(format!("{}", ast), "\
 //! query MyQuery {
@@ -46,8 +46,8 @@
 //! # extern crate graphql_parser;
 //! use graphql_parser::schema::{parse_schema, ParseError};
 //!
-//! # fn parse() -> Result<(), ParseError> {
-//! let ast = parse_schema::<String>(r#"
+//! # fn parse() -> Result<(), Box<dyn std::error::Error>> {
+//! let ast = parse_schema(r#"
 //!     schema {
 //!         query: Query
 //!     }
@@ -62,7 +62,7 @@
 //!     type User {
 //!         name: String!,
 //!     }
-//! "#)?.to_owned();
+//! "#)?;
 //! // Format canonical representation
 //! assert_eq!(format!("{}", ast), "\
 //! schema {

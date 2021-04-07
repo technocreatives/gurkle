@@ -1,4 +1,4 @@
-use std::{fmt, collections::BTreeMap};
+use std::collections::BTreeMap;
 
 use combine::{parser, ParseResult, Parser};
 use combine::easy::Error;
@@ -9,29 +9,15 @@ use crate::tokenizer::{Kind as T, Token, TokenStream};
 use crate::helpers::{punct, ident, kind, name};
 use crate::position::Pos;
 
-/// Text abstracts over types that hold a string value.
-/// It is used to make the AST generic over the string type.
-pub trait Text<'a>: 'a {
-    type Value: 'a + From<&'a str> + AsRef<str> + std::borrow::Borrow<str> + PartialEq + Eq + PartialOrd + Ord + fmt::Debug + Clone; 
-}
 
-impl<'a> Text<'a> for &'a str {
-    type Value = Self;
-}
-
-impl<'a> Text<'a> for String {
-    type Value = String;
-}
-
-impl<'a> Text<'a> for std::borrow::Cow<'a, str> {
-    type Value = Self;
-}
+/// An alias for string, used where graphql expects a name
+pub type Name = String;
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Directive<'a, T: Text<'a>> {
+pub struct Directive {
     pub position: Pos,
-    pub name: T::Value,
-    pub arguments: Vec<(T::Value, Value<'a, T>)>,
+    pub name: Name,
+    pub arguments: Vec<(Name, Value)>,
 }
 
 /// This represents integer number
@@ -46,23 +32,23 @@ pub struct Directive<'a, T: Text<'a>> {
 pub struct Number(pub(crate) i64);
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Value<'a, T: Text<'a>> {
-    Variable(T::Value),
+pub enum Value {
+    Variable(Name),
     Int(Number),
     Float(f64),
     String(String),
     Boolean(bool),
     Null,
-    Enum(T::Value),
-    List(Vec<Value<'a, T>>),
-    Object(BTreeMap<T::Value, Value<'a, T>>),
+    Enum(Name),
+    List(Vec<Value>),
+    Object(BTreeMap<Name, Value>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Type<'a, T: Text<'a>> {
-    NamedType(T::Value),
-    ListType(Box<Type<'a, T>>),
-    NonNullType(Box<Type<'a, T>>),
+pub enum Type {
+    NamedType(Name),
+    ListType(Box<Type>),
+    NonNullType(Box<Type>),
 }
 
 impl Number {
@@ -78,13 +64,12 @@ impl From<i32> for Number {
     }
 }
 
-pub fn directives<'a, T>(input: &mut TokenStream<'a>)
-    -> ParseResult<Vec<Directive<'a, T>>, TokenStream<'a>>
-    where T: Text<'a>, 
+pub fn directives<'a>(input: &mut TokenStream<'a>)
+    -> ParseResult<Vec<Directive>, TokenStream<'a>>
 {
     many(position()
         .skip(punct("@"))
-        .and(name::<'a, T>())
+        .and(name())
         .and(parser(arguments))
         .map(|((position, name), arguments)| {
             Directive { position, name, arguments }
@@ -92,13 +77,12 @@ pub fn directives<'a, T>(input: &mut TokenStream<'a>)
     .parse_stream(input)
 }
 
-pub fn arguments<'a, T>(input: &mut TokenStream<'a>)
-    -> ParseResult<Vec<(T::Value, Value<'a, T>)>, TokenStream<'a>>
-    where T: Text<'a>,
+pub fn arguments<'a>(input: &mut TokenStream<'a>)
+    -> ParseResult<Vec<(String, Value)>, TokenStream<'a>>
 {
     optional(
         punct("(")
-        .with(many1(name::<'a, T>()
+        .with(many1(name()
             .skip(punct(":"))
             .and(parser(value))))
         .skip(punct(")")))
@@ -108,25 +92,23 @@ pub fn arguments<'a, T>(input: &mut TokenStream<'a>)
     .parse_stream(input)
 }
 
-pub fn int_value<'a, S>(input: &mut TokenStream<'a>)
-    -> ParseResult<Value<'a, S>, TokenStream<'a>>
-    where S: Text<'a>
+pub fn int_value<'a>(input: &mut TokenStream<'a>)
+    -> ParseResult<Value, TokenStream<'a>>
 {
     kind(T::IntValue).and_then(|tok| tok.value.parse())
             .map(Number).map(Value::Int)
     .parse_stream(input)
 }
 
-pub fn float_value<'a, S>(input: &mut TokenStream<'a>)
-    -> ParseResult<Value<'a, S>, TokenStream<'a>>
-    where S: Text<'a>
+pub fn float_value<'a>(input: &mut TokenStream<'a>)
+    -> ParseResult<Value, TokenStream<'a>>
 {
     kind(T::FloatValue).and_then(|tok| tok.value.parse())
             .map(Value::Float)
     .parse_stream(input)
 }
 
-fn unquote_block_string<'a>(src: &'a str) -> Result<String, Error<Token<'a>, Token<'a>>> {
+fn unquote_block_string(src: &str) -> Result<String, Error<Token, Token>> {
     debug_assert!(src.starts_with("\"\"\"") && src.ends_with("\"\"\""));
     let indent = src[3..src.len()-3].lines().skip(1)
         .filter_map(|line| {
@@ -162,8 +144,7 @@ fn unquote_block_string<'a>(src: &'a str) -> Result<String, Error<Token<'a>, Tok
     Ok(result)
 }
 
-fn unquote_string<'a>(s: &'a str) -> Result<String, Error<Token, Token>> 
-{
+fn unquote_string(s: &str) -> Result<String, Error<Token, Token>> {
     let mut res = String::with_capacity(s.len());
     debug_assert!(s.starts_with('"') && s.ends_with('"'));
     let mut chars = s[1..s.len()-1].chars();
@@ -220,32 +201,29 @@ pub fn string<'a>(input: &mut TokenStream<'a>)
     )).parse_stream(input)
 }
 
-pub fn string_value<'a, S>(input: &mut TokenStream<'a>)
-    -> ParseResult<Value<'a, S>, TokenStream<'a>>
-    where S: Text<'a>,
+pub fn string_value<'a>(input: &mut TokenStream<'a>)
+    -> ParseResult<Value, TokenStream<'a>>
 {
     kind(T::StringValue).and_then(|tok| unquote_string(tok.value))
         .map(Value::String)
     .parse_stream(input)
 }
 
-pub fn block_string_value<'a, S>(input: &mut TokenStream<'a>)
-    -> ParseResult<Value<'a, S>, TokenStream<'a>>
-    where S: Text<'a>,
+pub fn block_string_value<'a>(input: &mut TokenStream<'a>)
+    -> ParseResult<Value, TokenStream<'a>>
 {
     kind(T::BlockString).and_then(|tok| unquote_block_string(tok.value))
         .map(Value::String)
     .parse_stream(input)
 }
 
-pub fn plain_value<'a, T>(input: &mut TokenStream<'a>)
-    -> ParseResult<Value<'a, T>, TokenStream<'a>>
-    where T: Text<'a>,
+pub fn plain_value<'a>(input: &mut TokenStream<'a>)
+    -> ParseResult<Value, TokenStream<'a>>
 {
     ident("true").map(|_| Value::Boolean(true))
     .or(ident("false").map(|_| Value::Boolean(false)))
     .or(ident("null").map(|_| Value::Null))
-    .or(name::<'a, T>().map(Value::Enum))
+    .or(name().map(Value::Enum))
     .or(parser(int_value))
     .or(parser(float_value))
     .or(parser(string_value))
@@ -253,40 +231,37 @@ pub fn plain_value<'a, T>(input: &mut TokenStream<'a>)
     .parse_stream(input)
 }
 
-pub fn value<'a, T>(input: &mut TokenStream<'a>)
-    -> ParseResult<Value<'a, T>, TokenStream<'a>>
-    where T: Text<'a>,
+pub fn value<'a>(input: &mut TokenStream<'a>)
+    -> ParseResult<Value, TokenStream<'a>>
 {
     parser(plain_value)
-    .or(punct("$").with(name::<'a, T>()).map(Value::Variable))
+    .or(punct("$").with(name()).map(Value::Variable))
     .or(punct("[").with(many(parser(value))).skip(punct("]"))
         .map(Value::List))
     .or(punct("{")
-        .with(many(name::<'a, T>().skip(punct(":")).and(parser(value))))
+        .with(many(name().skip(punct(":")).and(parser(value))))
         .skip(punct("}"))
         .map(Value::Object))
     .parse_stream(input)
 }
 
-pub fn default_value<'a, T>(input: &mut TokenStream<'a>)
-    -> ParseResult<Value<'a, T>, TokenStream<'a>>
-    where T: Text<'a>,
+pub fn default_value<'a>(input: &mut TokenStream<'a>)
+    -> ParseResult<Value, TokenStream<'a>>
 {
     parser(plain_value)
     .or(punct("[").with(many(parser(default_value))).skip(punct("]"))
         .map(Value::List))
     .or(punct("{")
-        .with(many(name::<'a, T>().skip(punct(":")).and(parser(default_value))))
+        .with(many(name().skip(punct(":")).and(parser(default_value))))
         .skip(punct("}"))
         .map(Value::Object))
     .parse_stream(input)
 }
 
-pub fn parse_type<'a, T>(input: &mut TokenStream<'a>)
-    -> ParseResult<Type<'a, T>, TokenStream<'a>>
-    where T: Text<'a>,
+pub fn parse_type<'a>(input: &mut TokenStream<'a>)
+    -> ParseResult<Type, TokenStream<'a>>
 {
-    name::<'a, T>().map(Type::NamedType)
+    name().map(Type::NamedType)
     .or(punct("[")
         .with(parser(parse_type))
         .skip(punct("]"))

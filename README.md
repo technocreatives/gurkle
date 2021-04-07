@@ -12,8 +12,7 @@ A fork of [graphql_client](https://github.com/graphql-rust/graphql-client) and c
 
 - Precise types for query variables and responses.
 - Supports GraphQL fragments, objects, unions, inputs, enums, custom scalars and input objects.
-- Works in the browser (WebAssembly).
-- Subscriptions support (serialization-deserialization only at the moment).
+- Subscriptions support.
 - Copies documentation from the GraphQL schema to the generated Rust code.
 - Arbitrary derives on the generated responses.
 - Arbitrary custom scalars.
@@ -25,7 +24,9 @@ A fork of [graphql_client](https://github.com/graphql-rust/graphql-client) and c
 
 - Install the CLI tool (`cargo install gurkle-cli`)
 - Run `gurkle generate --schema-path <your schema> path/to/operations/*.graphql`
-- This will generate a `mod.rs` in your current directory.
+- This will generate a `generated.rs` in your current directory.
+- `include!("./generated.rs")` into the `.rs` file of your choice
+  - You may need to import types used by the custom scalars into this file, or use `type` definitions.
 
 ## Custom scalars
 

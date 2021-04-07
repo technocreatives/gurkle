@@ -91,14 +91,14 @@ impl<'a> GeneratedModule<'a> {
                     pub fn subscribe(
                         &self,
                         client: &dyn gurkle::Subscriber<#operation_name_ident>,
-                    ) -> Pin<Box<dyn futures_util::stream::Stream<Item = Result<#operation_name_ident, gurkle::Error>> + Send>> {
+                    ) -> Result<std::pin::Pin<Box<dyn futures_util::stream::Stream<Item = Result<#operation_name_ident, gurkle::Error>> + Send>>, gurkle::Error> {
                         let req_body = gurkle::RequestBody {
                             variables: serde_json::to_value(&self)?,
                             query: QUERY,
                             operation_name: OPERATION_NAME,
                         };
 
-                        client.subscribe(req_body)
+                        Ok(client.subscribe(req_body))
                     }
                 }
             }

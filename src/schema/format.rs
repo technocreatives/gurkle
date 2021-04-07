@@ -1,9 +1,8 @@
 use std::fmt;
 
-use crate::format::{Displayable, Formatter, Style, format_directives};
+use crate::format::{format_directives, Displayable, Formatter, Style};
 
 use crate::schema::ast::*;
-
 
 impl Document {
     /// Format a document according to style
@@ -28,7 +27,6 @@ fn description(description: &Option<String>, f: &mut Formatter) {
         f.endline();
     }
 }
-
 
 impl Displayable for Document {
     fn display(&self, f: &mut Formatter) {
@@ -413,4 +411,3 @@ impl_display!(
     InputObjectTypeExtension,
     DirectiveDefinition,
 );
-

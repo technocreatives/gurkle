@@ -1,12 +1,12 @@
 [package]
 name = "gurkle-parser"
+version = "0.2.0"
 description = "A parser, AST and serializer for GraphQL schemas and query language."
 license = "MIT OR Apache-2.0"
 keywords = ["graphql", "parser"]
 categories = ["parser-implementations", "command-line-interface"]
 homepage = "https://github.com/bbqsrc/gurkle"
 documentation = "https://docs.rs/gurkle-parser"
-version = "0.1.0"
 authors = [
     "Brendan Molloy <brendan@bbqsrc.net>",
     "Paul Colomiets <paul@colomiets.name>"

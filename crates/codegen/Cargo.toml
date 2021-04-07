@@ -1,6 +1,6 @@
 [package]
 name = "gurkle_codegen"
-version = "0.1.1"
+version = "0.2.0"
 authors = [
     "Brendan Molloy <brendan@bbqsrc.net>",
     "Tom Houlé <tom@tomhoule.com>",
@@ -11,7 +11,7 @@ repository = "https://github.com/bbqsrc/gurkle"
 edition = "2018"
 
 [dependencies]
-gurkle-parser = { path = "../parser" }
+gurkle-parser = { version = "0.2", path = "../parser" }
 heck = "0.3"
 proc-macro2 = { version = "1", features = [] }
 quote = "1"

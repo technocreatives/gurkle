@@ -165,7 +165,9 @@ impl Displayable for Mutation {
             f.write(name);
             if !self.variable_definitions.is_empty() {
                 f.write("(");
-                for var in &self.variable_definitions {
+                self.variable_definitions[0].display(f);
+                for var in &self.variable_definitions[1..] {
+                    f.write(", ");
                     var.display(f);
                 }
                 f.write(")");
@@ -191,7 +193,9 @@ impl Displayable for Subscription {
             f.write(name);
             if !self.variable_definitions.is_empty() {
                 f.write("(");
-                for var in &self.variable_definitions {
+                self.variable_definitions[0].display(f);
+                for var in &self.variable_definitions[1..] {
+                    f.write(", ");
                     var.display(f);
                 }
                 f.write(")");

@@ -8,7 +8,7 @@
 mod ws;
 
 use futures_util::{stream::Stream, StreamExt};
-use reqwest::Url;
+use reqwest::{Url, header::{AUTHORIZATION, HeaderMap, HeaderValue}};
 use serde::{Deserialize, Serialize};
 use tokio_tungstenite::tungstenite::{self, http::Request};
 use ws::GraphQLWebSocket;
@@ -154,10 +154,16 @@ where
 
 impl HttpClient {
     /// Create a new Gurkle HTTP client.
-    pub fn new(endpoint: &Url) -> Self {
+    pub fn new(endpoint: &Url, bearer_token: Option<String>) -> Self {
+        let mut header_map = HeaderMap::new();
+
+        if let Some(token) = bearer_token {
+            header_map.insert(AUTHORIZATION, HeaderValue::from_str(&format!("Bearer {}", token)).unwrap());
+        }
+
         Self {
             http_endpoint: endpoint.clone(),
-            http: reqwest::Client::new(),
+            http: reqwest::Client::builder().default_headers(header_map).build().unwrap(),
         }
     }
 

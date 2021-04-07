@@ -1,17 +1,16 @@
 [package]
-name = "graphql-parser"
-description = """
-    A parser, AST and serializer for graphql query language and scheme
-    definition language (sometimes called IDL).
-"""
-license = "MIT/Apache-2.0"
-readme = "README.md"
+name = "gurkle-parser"
+description = "A parser, AST and serializer for GraphQL schemas and query language."
+license = "MIT OR Apache-2.0"
 keywords = ["graphql", "parser"]
 categories = ["parser-implementations", "command-line-interface"]
-homepage = "https://github.com/graphql-rust/graphql-parser"
-documentation = "https://docs.rs/graphql-parser"
-version = "0.3.0"
-authors = ["Paul Colomiets <paul@colomiets.name>"]
+homepage = "https://github.com/bbqsrc/gurkle"
+documentation = "https://docs.rs/gurkle-parser"
+version = "0.1.0"
+authors = [
+    "Brendan Molloy <brendan@bbqsrc.net>",
+    "Paul Colomiets <paul@colomiets.name>"
+]
 edition = "2018"
 
 [dependencies]

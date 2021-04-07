@@ -20,8 +20,7 @@
 //! -------------------------------
 //!
 //! ```rust
-//! # extern crate graphql_parser;
-//! use graphql_parser::query::{parse_query, ParseError};
+//! use gurkle_parser::query::{parse_query, ParseError};
 //!
 //! # fn parse() -> Result<(), Box<dyn std::error::Error>> {
 //! let ast = parse_query("query MyQuery { field1, field2 }")?;
@@ -43,8 +42,7 @@
 //! --------------------------------
 //!
 //! ```rust
-//! # extern crate graphql_parser;
-//! use graphql_parser::schema::{parse_schema, ParseError};
+//! use gurkle_parser::schema::{parse_schema, ParseError};
 //!
 //! # fn parse() -> Result<(), Box<dyn std::error::Error>> {
 //! let ast = parse_schema(r#"

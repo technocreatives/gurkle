@@ -1,12 +1,10 @@
 #![feature(test)]
 extern crate test;
 
-extern crate graphql_parser;
-
 use std::fs::File;
 use std::io::Read;
 
-use graphql_parser::parse_query;
+use gurkle_parser::parse_query;
 
 fn load_file(name: &str) -> String {
     let mut buf = String::with_capacity(1024);

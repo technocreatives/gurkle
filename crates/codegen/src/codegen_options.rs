@@ -47,7 +47,7 @@ impl GraphQLClientCodegenOptions {
             struct_name: Default::default(),
             query_file: Default::default(),
             schema_file: Default::default(),
-            normalization: Normalization::None,
+            normalization: Normalization::Rust,
             custom_scalars_module: Default::default(),
             extern_enums: Default::default(),
         }
@@ -89,16 +89,15 @@ impl GraphQLClientCodegenOptions {
             .into_iter()
             .flat_map(|s| s.split(','));
 
-        vec!["Serialize", "Debug"].into_iter().chain(additional)
+        vec!["Serialize", "Deserialize", "Debug", "Clone"].into_iter().chain(additional)
     }
 
     /// Traits we want to derive for responses.
     pub fn all_response_derives(&self) -> impl Iterator<Item = &str> {
-        let base_derives = vec!["Deserialize", "Debug"].into_iter();
+        let base_derives = vec!["Serialize", "Deserialize", "Debug", "Clone"].into_iter();
 
         base_derives.chain(
-            self.additional_response_derives()
-                .filter(|additional| additional != &"Deserialize"),
+            self.additional_response_derives(),
         )
     }
 

@@ -14,7 +14,7 @@ pub(crate) struct CliCodegenParams {
     pub deprecation_strategy: Option<String>,
     pub no_formatting: bool,
     pub module_visibility: Option<String>,
-    pub output_directory: Option<PathBuf>,
+    pub output_path: Option<PathBuf>,
     pub custom_scalars_module: Option<String>,
 }
 
@@ -24,7 +24,7 @@ pub(crate) fn generate_code(params: CliCodegenParams) -> Result<()> {
         response_derives,
         deprecation_strategy,
         no_formatting,
-        output_directory,
+        output_path,
         module_visibility: _module_visibility,
         query_paths,
         schema_path,
@@ -74,9 +74,16 @@ pub(crate) fn generate_code(params: CliCodegenParams) -> Result<()> {
 
     let generated_code = gen.to_string();
 
-    let dest_file_path: PathBuf = output_directory
-        .map(|output_dir| output_dir.join("generated.rs"))
-        .unwrap_or_else(move || "generated.rs".into());
+    let dest_file_path = match output_path {
+        Some(v) => {
+            if v.extension().map(|x| x == "rs").unwrap_or(false) {
+                v
+            } else {
+                v.join("generated.rs")
+            }
+        }
+        None => "generated.rs".into(),
+    };
 
     let mut file = File::create(&dest_file_path)?;
     write!(

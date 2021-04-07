@@ -62,12 +62,12 @@ enum Cli {
         /// Default value is pub.
         #[structopt(short = "m", long = "module-visibility")]
         module_visibility: Option<String>,
-        /// The directory in which the code will be generated.
+        /// The file path where the code will be generated.
         ///
-        /// If this option is omitted, the code will be generated next to the .graphql
-        /// file, with the same name and the .rs extension.
-        #[structopt(short = "o", long = "output-directory")]
-        output_directory: Option<PathBuf>,
+        /// If this option is omitted, the code will be generated next in the current directory
+        /// with the name `generated.rs`.
+        #[structopt(short = "o", long = "output-path")]
+        output_path: Option<PathBuf>,
         /// The module where the custom scalar definitions are located.
         /// --custom-scalars-module='crate::gql::custom_scalars'
         #[structopt(short = "p", long = "custom-scalars-module")]
@@ -99,7 +99,7 @@ fn main() -> anyhow::Result<()> {
             deprecation_strategy,
             module_visibility,
             no_formatting,
-            output_directory,
+            output_path,
             query_paths,
             schema_path,
             selected_operation,
@@ -110,7 +110,7 @@ fn main() -> anyhow::Result<()> {
             deprecation_strategy,
             module_visibility,
             no_formatting,
-            output_directory,
+            output_path,
             query_paths,
             schema_path,
             selected_operation,

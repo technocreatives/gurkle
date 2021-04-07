@@ -3,7 +3,6 @@ use std::{marker::PhantomData, pin::Pin};
 use async_stream::stream;
 use futures_util::{stream::Stream, StreamExt};
 use raw::{ClientMessage, GraphQLReceiver, GraphQLSender, ServerMessage};
-use reqwest::Url;
 use serde::{de::DeserializeOwned, Deserialize};
 use tokio::sync::{broadcast, mpsc};
 use tokio_tungstenite::{connect_async, tungstenite};
@@ -22,12 +21,7 @@ pub struct GraphQLWebSocket {
 }
 
 impl GraphQLWebSocket {
-    pub async fn connect(url: Url) -> Result<GraphQLWebSocket, tungstenite::Error> {
-        let req = Request::builder().uri(url.to_string()).body(()).unwrap();
-        Self::connect_request(req).await
-    }
-
-    pub async fn connect_request(request: Request) -> Result<GraphQLWebSocket, tungstenite::Error> {
+    pub async fn connect(request: Request) -> Result<GraphQLWebSocket, tungstenite::Error> {
         let (stream, _) = match connect_async(request).await {
             Ok(v) => v,
             Err(e) => return Err(e),
@@ -130,14 +124,18 @@ where
     }
 
     fn spawn_task(self) -> mpsc::Receiver<Result<serde_json::Value, crate::Error>> {
-        let mut this = self;
-        let id = this.id.clone();
-        let payload = this.payload.clone();
+        let this = self;
         let (tx, rx) = mpsc::channel(16);
 
         tokio::spawn(async move {
+            let mut this = this;
+
             tracing::trace!("Sending start message");
-            this.tx.send(ClientMessage::Start { id, payload }).unwrap();
+            {
+                let id = this.id.clone();
+                let payload = this.payload.clone();
+                this.tx.send(ClientMessage::Start { id, payload }).unwrap();
+            }
 
             tracing::trace!("Sent!");
 
@@ -146,13 +144,6 @@ where
                 match msg {
                     ServerMessage::Data { id, payload } => {
                         if id == this.id {
-                            // let raw_data = payload.data.unwrap_or(serde_json::Value::Null);
-                            // let raw_errors = payload.errors.unwrap_or(serde_json::Value::Null);
-
-                            // let data: Option<T> = serde_json::from_value(raw_data).unwrap_or(None);
-                            // let errors: Option<E> =
-                            //     serde_json::from_value(raw_errors).unwrap_or(None);
-
                             let _ = tx.send(payload.into()).await;
                         }
                     }

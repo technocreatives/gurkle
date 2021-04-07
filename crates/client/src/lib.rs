@@ -10,7 +10,7 @@ mod ws;
 use futures_util::{stream::Stream, StreamExt};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
-use tokio_tungstenite::tungstenite;
+use tokio_tungstenite::tungstenite::{self, http::Request};
 use ws::GraphQLWebSocket;
 
 use std::pin::Pin;
@@ -32,6 +32,9 @@ where
     ) -> Pin<Box<dyn Future<Output = Result<T, Error>> + 'a>>;
 }
 
+/// Stream type for subscriptions
+pub type SubscriptionStream<T> = Pin<Box<dyn Stream<Item = Result<T, Error>> + Send>>;
+
 /// Trait for subscribing to GraphQL subscription operations.
 pub trait Subscriber<T>
 where
@@ -41,7 +44,7 @@ where
     fn subscribe(
         &self,
         request_body: RequestBody,
-    ) -> Pin<Box<dyn Stream<Item = Result<T, Error>> + Send>>;
+    ) -> SubscriptionStream<T>;
 }
 
 /// HTTP(S) GraphQL client
@@ -85,16 +88,23 @@ pub enum Error {
 
 impl WsClient {
     /// Create a new Gurkle HTTP client.
-    pub async fn new(endpoint: &Url) -> Result<Self, tungstenite::Error> {
-        Ok(Self {
-            ws: Mutex::new(GraphQLWebSocket::connect(endpoint.clone()).await?),
-        })
+    pub async fn new(endpoint: &Url, bearer_token: Option<String>, ws_protocols: Vec<String>) -> Result<Self, tungstenite::Error> {
+        let mut req = Request::builder().uri(endpoint.as_str());
+
+        if let Some(bearer_token) = bearer_token {
+            req = req.header("Authorization", format!("Bearer {}", bearer_token));
+        }
+
+        if !ws_protocols.is_empty() {
+            req = req.header("Sec-WebSocket-Protocol", ws_protocols.join(", "))
+        }
+
+        let ws = GraphQLWebSocket::connect(req.body(()).unwrap()).await?;
+
+        Ok(Self { ws: Mutex::new(ws) })
     }
 
-    fn sub_inner<T>(
-        &self,
-        request_body: RequestBody,
-    ) -> impl Stream<Item = Result<T, Error>> + Send
+    fn sub_inner<T>(&self, request_body: RequestBody) -> impl Stream<Item = Result<T, Error>> + Send
     where
         T: for<'de> Deserialize<'de> + Unpin + Send + 'static,
     {
@@ -125,7 +135,7 @@ where
     fn subscribe(
         &self,
         request_body: RequestBody,
-    ) -> Pin<Box<dyn Stream<Item = Result<T, Error>> + Send>> {
+    ) -> SubscriptionStream<T> {
         Box::pin(self.sub_inner(request_body))
     }
 }

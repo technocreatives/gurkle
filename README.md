@@ -41,10 +41,6 @@ field annotations.
 
 You can use `cargo doc --document-private-items` to generate rustdoc documentation on the generated code.
 
-## Examples
-
-See the [examples directory](https://github.com/bbqsrc/gurkle/tree/main/examples) in this repository.
-
 ## Code of Conduct
 
 Anyone who interacts with this project in any space, including but not limited to

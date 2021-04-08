@@ -6,7 +6,7 @@ authors = [
     "Tom Houlé <tom@tomhoule.com>",
 ]
 description = "GraphQL client for Rust, with typed requests and responses, and subscriptions!"
-repository = "https://github.com/bbqsrc/gurkle"
+repository = "https://github.com/technocreatives/gurkle"
 license = "Apache-2.0 OR MIT"
 keywords = ["graphql", "api", "web"]
 categories = ["network-programming", "web-programming"]

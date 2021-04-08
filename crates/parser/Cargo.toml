@@ -5,7 +5,7 @@ description = "A parser, AST and serializer for GraphQL schemas and query langua
 license = "MIT OR Apache-2.0"
 keywords = ["graphql", "parser"]
 categories = ["parser-implementations", "command-line-interface"]
-homepage = "https://github.com/bbqsrc/gurkle"
+homepage = "https://github.com/technocreatives/gurkle"
 documentation = "https://docs.rs/gurkle-parser"
 authors = [
     "Brendan Molloy <brendan@bbqsrc.net>",

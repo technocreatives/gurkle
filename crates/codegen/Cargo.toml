@@ -7,7 +7,7 @@ authors = [
 ]
 description = "Utility crate for gurkle"
 license = "Apache-2.0 OR MIT"
-repository = "https://github.com/bbqsrc/gurkle"
+repository = "https://github.com/technocreatives/gurkle"
 edition = "2018"
 
 [dependencies]

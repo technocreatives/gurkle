@@ -1,6 +1,6 @@
 # Gurkle
 
-[![Github actions Status](https://github.com/bbqsrc/gurkle/workflows/CI/badge.svg?branch=main&event=push)](https://github.com/bbqsrc/gurkle/actions)
+[![Github actions Status](https://github.com/technocreatives/gurkle/workflows/CI/badge.svg?branch=main&event=push)](https://github.com/technocreatives/gurkle/actions)
 [![docs](https://docs.rs/gurkle/badge.svg)](https://docs.rs/gurkle/latest/gurkle/)
 [![crates.io](https://img.shields.io/crates/v/gurkle.svg)](https://crates.io/crates/gurkle)
 
@@ -44,7 +44,7 @@ You can use `cargo doc --document-private-items` to generate rustdoc documentati
 ## Code of Conduct
 
 Anyone who interacts with this project in any space, including but not limited to
-this GitHub repository, must follow our [Code of Conduct](https://github.com/bbqsrc/gurkle/blob/main/CODE_OF_CONDUCT.md).
+this GitHub repository, must follow our [Code of Conduct](https://github.com/technocreatives/gurkle/blob/main/CODE_OF_CONDUCT.md).
 
 ## License
 

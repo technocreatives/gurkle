@@ -75,7 +75,8 @@ enum Cli {
     },
 }
 
-fn main() -> anyhow::Result<()> {
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
     set_env_logger();
 
     let cli = Cli::from_args();
@@ -92,7 +93,7 @@ fn main() -> anyhow::Result<()> {
             authorization,
             headers,
             no_ssl,
-        ),
+        ).await,
         Cli::Generate {
             variables_derives,
             response_derives,

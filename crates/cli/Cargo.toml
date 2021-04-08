@@ -15,17 +15,14 @@ name = "gurkle"
 path = "src/main.rs"
 
 [dependencies]
-anyhow = "1.0"
-reqwest = { version = "0.10", features = ["json", "blocking"] }
+anyhow = "1"
 gurkle = { version = "0.2.0", path = "../client" }
 gurkle_codegen = { version = "0.2.0", path = "../codegen" }
 structopt = "0.3"
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-syn = "1.0"
+serde_json = "1"
+syn = "1"
 log = "0.4"
 env_logger = "0.6"
-
-[features]
-default = []
-
+reqwest = { version = "0.11", default-features = false, features = ["rustls-tls", "json", "gzip", "brotli"] }
+tokio = { version = "1", features = ["io-util", "sync", "macros"], default-features = false }

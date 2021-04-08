@@ -4,7 +4,7 @@ use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, CONTENT_TYPE};
 use std::path::PathBuf;
 use std::str::FromStr;
 
-pub fn introspect_schema(
+pub async fn introspect_schema(
     location: &str,
     output: Option<PathBuf>,
     authorization: Option<String>,
@@ -24,7 +24,7 @@ pub fn introspect_schema(
         operation_name: introspection_query::OPERATION_NAME,
     };
 
-    let client = reqwest::blocking::Client::builder()
+    let client = reqwest::Client::builder()
         .danger_accept_invalid_certs(no_ssl)
         .build()?;
 
@@ -38,7 +38,7 @@ pub fn introspect_schema(
         req_builder = req_builder.bearer_auth(token.as_str());
     };
 
-    let res = req_builder.json(&request_body).send()?;
+    let res = req_builder.json(&request_body).send().await?;
 
     if res.status().is_success() {
         // do nothing
@@ -48,7 +48,7 @@ pub fn introspect_schema(
         println!("Something else happened. Status: {:?}", res.status());
     }
 
-    let json: serde_json::Value = res.json()?;
+    let json: serde_json::Value = res.json().await?;
     serde_json::to_writer_pretty(out, &json)?;
     Ok(())
 }

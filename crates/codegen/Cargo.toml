@@ -1,6 +1,6 @@
 [package]
 name = "gurkle_codegen"
-version = "0.2.0"
+version = "0.2.1"
 authors = [
     "Brendan Molloy <brendan@bbqsrc.net>",
     "Tom Houlé <tom@tomhoule.com>",

@@ -5,7 +5,8 @@
 #![deny(missing_docs)]
 #![deny(rust_2018_idioms)]
 
-mod ws;
+/// WebSocket support
+pub mod ws;
 
 use async_trait::async_trait;
 use futures_util::{stream::Stream, SinkExt, StreamExt};

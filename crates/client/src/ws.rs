@@ -13,7 +13,7 @@ pub use tungstenite::Error;
 
 use crate::RequestBody;
 
-pub struct GraphQLWebSocket {
+pub(crate) struct GraphQLWebSocket {
     tx: mpsc::UnboundedSender<ClientMessage>,
     subscriptions: Arc<RwLock<HashMap<u64, mpsc::UnboundedSender<ServerMessage>>>>,
     // server_tx: mpsc::UnboundedSender<ServerMessage>,
@@ -143,7 +143,7 @@ impl GraphQLWebSocket {
     }
 }
 
-pub struct Subscription<
+pub(crate) struct Subscription<
     T: for<'de> Deserialize<'de> = serde_json::Value,
     E: for<'de> Deserialize<'de> = serde_json::Value,
 > {
@@ -260,7 +260,7 @@ impl Drop for GraphQLWebSocket {
     }
 }
 
-pub mod raw {
+pub(crate) mod raw {
     use std::convert::TryFrom;
 
     use futures_util::stream::{SplitSink, SplitStream, Stream};

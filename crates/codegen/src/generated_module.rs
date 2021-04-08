@@ -88,7 +88,7 @@ impl<'a> GeneratedModule<'a> {
         let variables_impl = if op.operation_type == crate::query::OperationType::Subscription {
             quote! {
                 impl Variables {
-                    pub fn subscribe(
+                    pub async fn subscribe(
                         &self,
                         client: &dyn gurkle::Subscriber<#operation_name_ident>,
                     ) -> Result<std::pin::Pin<Box<dyn futures_util::stream::Stream<Item = Result<#operation_name_ident, gurkle::Error>> + Send>>, gurkle::Error> {
@@ -98,7 +98,7 @@ impl<'a> GeneratedModule<'a> {
                             operation_name: OPERATION_NAME,
                         };
 
-                        Ok(client.subscribe(req_body))
+                        client.subscribe(req_body).await
                     }
                 }
             }

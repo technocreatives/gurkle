@@ -7,44 +7,47 @@
 
 mod ws;
 
-use futures_util::{stream::Stream, StreamExt};
-use reqwest::{Url, header::{AUTHORIZATION, HeaderMap, HeaderValue}};
+use async_trait::async_trait;
+use futures_util::{stream::Stream, SinkExt, StreamExt};
+use reqwest::{
+    header::{HeaderMap, HeaderValue, AUTHORIZATION},
+    Url,
+};
 use serde::{Deserialize, Serialize};
+use tokio::sync::Mutex;
 use tokio_tungstenite::tungstenite::{self, http::Request};
 use ws::GraphQLWebSocket;
 
 use std::pin::Pin;
-use std::{collections::HashMap, future::Future};
+use std::collections::HashMap;
 use std::{
     fmt::{self, Display},
-    sync::Mutex,
 };
 
 /// Trait for executing GraphQL operations (queries and mutations).
-pub trait Executor<'a, T>
+#[async_trait]
+pub trait Executor<'a, T>: Sync
 where
     T: for<'de> Deserialize<'de> + 'a,
 {
     /// Execute provided GraphQL operation (query or mutation).
-    fn execute(
-        &'a self,
-        request_body: RequestBody,
-    ) -> Pin<Box<dyn Future<Output = Result<T, Error>> + 'a>>;
+    async fn execute(&'a self, request_body: RequestBody) -> Result<T, Error>;
 }
 
 /// Stream type for subscriptions
 pub type SubscriptionStream<T> = Pin<Box<dyn Stream<Item = Result<T, Error>> + Send>>;
 
 /// Trait for subscribing to GraphQL subscription operations.
-pub trait Subscriber<T>
+#[async_trait]
+pub trait Subscriber<T>: Sync
 where
     T: for<'de> Deserialize<'de> + Unpin + Send + 'static,
 {
     /// Subscribe to provided GraphQL subscription.
-    fn subscribe(
+    async fn subscribe(
         &self,
         request_body: RequestBody,
-    ) -> SubscriptionStream<T>;
+    ) -> Result<SubscriptionStream<T>, Error>;
 }
 
 /// HTTP(S) GraphQL client
@@ -88,7 +91,11 @@ pub enum Error {
 
 impl WsClient {
     /// Create a new Gurkle HTTP client.
-    pub async fn new(endpoint: &Url, bearer_token: Option<String>, ws_protocols: Vec<String>) -> Result<Self, tungstenite::Error> {
+    pub async fn new(
+        endpoint: &Url,
+        bearer_token: Option<String>,
+        ws_protocols: Vec<String>,
+    ) -> Result<Self, tungstenite::Error> {
         let mut req = Request::builder().uri(endpoint.as_str());
 
         if let Some(bearer_token) = bearer_token {
@@ -104,51 +111,54 @@ impl WsClient {
         Ok(Self { ws: Mutex::new(ws) })
     }
 
-    fn sub_inner<T>(&self, request_body: RequestBody) -> impl Stream<Item = Result<T, Error>> + Send
+    async fn sub_inner<T>(&self, request_body: RequestBody) -> Result<SubscriptionStream<T>, Error>
     where
         T: for<'de> Deserialize<'de> + Unpin + Send + 'static,
     {
-        let subscription = {
-            let mut ws = self.ws.lock().unwrap();
-            ws.subscribe::<T>(request_body)
-        };
-        let mut stream = subscription.stream();
+        // let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+        let (tx, rx) = futures::channel::mpsc::unbounded();
 
-        async_stream::stream! {
+        let subscription = {
+            let mut ws = self.ws.lock().await;
+            ws.subscribe::<T>(request_body).await?
+        };
+
+        tokio::spawn(async move {
+            let mut tx = tx;
+            let mut stream = subscription.stream();
+
             while let Some(msg) = stream.next().await {
                 match msg {
                     Ok(value) => match serde_json::from_value(value) {
-                        Ok(v) => yield Ok(v),
-                        Err(e) => yield Err(Error::Json(e)),
+                        Ok(v) => tx.send(Ok(v)).await.unwrap_or(()),
+                        Err(e) => tx.send(Err(Error::Json(e))).await.unwrap_or(()),
                     },
-                    Err(err) => yield Err(err),
+                    Err(err) => tx.send(Err(err)).await.unwrap_or(()),
                 }
             }
-        }
+        });
+
+        Ok(Box::pin(rx))
     }
 }
 
+#[async_trait]
 impl<T> Subscriber<T> for WsClient
 where
     T: for<'de> Deserialize<'de> + Unpin + Send + 'static,
 {
-    fn subscribe(
-        &self,
-        request_body: RequestBody,
-    ) -> SubscriptionStream<T> {
-        Box::pin(self.sub_inner(request_body))
+    async fn subscribe(&self, request_body: RequestBody) -> Result<SubscriptionStream<T>, Error> {
+        self.sub_inner(request_body).await
     }
 }
 
+#[async_trait]
 impl<'a, T> Executor<'a, T> for HttpClient
 where
     T: for<'de> Deserialize<'de> + 'a,
 {
-    fn execute(
-        &'a self,
-        request_body: RequestBody,
-    ) -> Pin<Box<dyn Future<Output = Result<T, Error>> + 'a>> {
-        Box::pin(self.execute_inner(request_body))
+    async fn execute(&'a self, request_body: RequestBody) -> Result<T, Error> {
+        self.execute_inner(request_body).await
     }
 }
 
@@ -158,12 +168,18 @@ impl HttpClient {
         let mut header_map = HeaderMap::new();
 
         if let Some(token) = bearer_token {
-            header_map.insert(AUTHORIZATION, HeaderValue::from_str(&format!("Bearer {}", token)).unwrap());
+            header_map.insert(
+                AUTHORIZATION,
+                HeaderValue::from_str(&format!("Bearer {}", token)).unwrap(),
+            );
         }
 
         Self {
             http_endpoint: endpoint.clone(),
-            http: reqwest::Client::builder().default_headers(header_map).build().unwrap(),
+            http: reqwest::Client::builder()
+                .default_headers(header_map)
+                .build()
+                .unwrap(),
         }
     }
 

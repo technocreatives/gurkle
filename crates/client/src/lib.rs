@@ -1,6 +1,4 @@
-//! The top-level documentation resides on the [project README](https://github.com/graphql-rust/graphql-client) at the moment.
-//!
-//! The main interface to this library is the custom derive that generates modules from a GraphQL query and schema. See the docs for the [`GraphQLRequest`] trait for a full example.
+//! There is no usage documentation yet.
 
 #![deny(missing_docs)]
 #![deny(rust_2018_idioms)]

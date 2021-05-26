@@ -87,13 +87,16 @@ async fn main() -> anyhow::Result<()> {
             authorization,
             headers,
             no_ssl,
-        } => introspect_schema::introspect_schema(
-            &schema_location,
-            output,
-            authorization,
-            headers,
-            no_ssl,
-        ).await,
+        } => {
+            introspect_schema::introspect_schema(
+                &schema_location,
+                output,
+                authorization,
+                headers,
+                no_ssl,
+            )
+            .await
+        }
         Cli::Generate {
             variables_derives,
             response_derives,

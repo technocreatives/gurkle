@@ -16,14 +16,10 @@ use crate::RequestBody;
 pub(crate) struct GraphQLWebSocket {
     tx: mpsc::UnboundedSender<ClientMessage>,
     subscriptions: Arc<RwLock<HashMap<u64, mpsc::UnboundedSender<ServerMessage>>>>,
-    // server_tx: mpsc::UnboundedSender<ServerMessage>,
-    // #[allow(dead_code)] // Need this to avoid a hangup
-    // server_rx: mpsc::UnboundedReceiver<ServerMessage>,
     id_count: u64,
 }
 
 async fn process_server_message(
-    // tx: &mut mpsc::UnboundedSender<ServerMessage>,
     msg: ServerMessage,
     subscriptions: &RwLock<HashMap<u64, mpsc::UnboundedSender<ServerMessage>>>,
 ) {
@@ -67,42 +63,45 @@ impl GraphQLWebSocket {
 
         let (sink, stream) = StreamExt::split(stream);
 
-        // let (tx_in, rx_in) = mpsc::unbounded_channel();
-
-        // let tx_in0 = tx_in.clone();
         let subs0 = subscriptions.clone();
         let span = tracing::trace_span!("receiver");
-        tokio::spawn(async move {
-            // let mut tx = tx_in0;
-            let rx = GraphQLReceiver { stream };
-            let subscriptions = subs0;
+        tokio::spawn(
+            async move {
+                // let mut tx = tx_in0;
+                let rx = GraphQLReceiver { stream };
+                let subscriptions = subs0;
 
-            let mut stream = rx.stream();
-            while let Some(msg) = stream.next().await {
-                match msg {
-                    Ok(ServerMessage::ConnectionKeepAlive) => {}
-                    Ok(v) => process_server_message(v, &*subscriptions).await,
-                    Err(e) => tracing::error!("{:?}", e),
+                let mut stream = rx.stream();
+                while let Some(msg) = stream.next().await {
+                    match msg {
+                        Ok(ServerMessage::ConnectionKeepAlive) => {}
+                        Ok(v) => process_server_message(v, &*subscriptions).await,
+                        Err(e) => tracing::error!("{:?}", e),
+                    }
                 }
             }
-        }.instrument(span));
+            .instrument(span),
+        );
 
         let (tx_out, mut rx_out) = mpsc::unbounded_channel();
         let span = tracing::trace_span!("sender");
-        tokio::spawn(async move {
-            let mut tx = GraphQLSender { sink };
+        tokio::spawn(
+            async move {
+                let mut tx = GraphQLSender { sink };
 
-            tx.send(ClientMessage::ConnectionInit { payload: None })
-                .await
-                .unwrap();
+                tx.send(ClientMessage::ConnectionInit { payload: None })
+                    .await
+                    .unwrap();
 
-            while let Some(msg) = rx_out.recv().await {
-                match tx.send(msg).await {
-                    Ok(()) => {}
-                    Err(e) => tracing::error!("{:?}", e),
+                while let Some(msg) = rx_out.recv().await {
+                    match tx.send(msg).await {
+                        Ok(()) => {}
+                        Err(e) => tracing::error!("{:?}", e),
+                    }
                 }
             }
-        }.instrument(span));
+            .instrument(span),
+        );
 
         let socket = GraphQLWebSocket {
             tx: tx_out,
@@ -178,49 +177,55 @@ where
         let this = self;
         let (tx, rx) = mpsc::unbounded_channel();
 
-        tokio::spawn(async move {
-            let mut this = this;
+        tokio::spawn(
+            async move {
+                let mut this = this;
 
-            while let Some(msg) = this.rx.recv().await {
-                tracing::trace!("{:?}", &msg);
-                match msg {
-                    ServerMessage::Data { id, payload } => {
-                        if id == this.id {
-                            match tx.send(payload.into()) {
-                                Ok(_) => {
-                                    tracing::trace!("Send payload successful.");
-                                },
+                while let Some(msg) = this.rx.recv().await {
+                    tracing::trace!("{:?}", &msg);
+                    match msg {
+                        ServerMessage::Data { id, payload } => {
+                            if id == this.id {
+                                match tx.send(payload.into()) {
+                                    Ok(_) => {
+                                        tracing::trace!("Send payload successful.");
+                                    }
+                                    Err(e) => tracing::error!("{:?}", e),
+                                }
+                            } else {
+                                tracing::error!(
+                                    "Subscription is receiving invalid messages! Got: {}",
+                                    id
+                                );
+                            }
+                        }
+                        ServerMessage::Complete { id } => {
+                            if id == this.id {
+                                return;
+                            }
+                        }
+                        ServerMessage::ConnectionError { payload } => {
+                            match tx.send(Err(crate::Error::Server(payload))) {
+                                Ok(_) => {}
                                 Err(e) => tracing::error!("{:?}", e),
                             }
-                        } else {
-                            tracing::error!("Subscription is receiving invalid messages! Got: {}", id);
-                        }
-                    }
-                    ServerMessage::Complete { id } => {
-                        if id == this.id {
                             return;
                         }
-                    }
-                    ServerMessage::ConnectionError { payload } => {
-                        match tx.send(Err(crate::Error::Server(payload))) {
-                            Ok(_) => {},
-                            Err(e) => tracing::error!("{:?}", e),
-                        }
-                        return;
-                    }
-                    ServerMessage::Error { id, payload } => {
-                        if id == this.id {
-                            match tx.send(Err(crate::Error::Server(payload))) {
-                                Ok(_) => {},
-                                Err(e) => tracing::error!("{:?}", e),
+                        ServerMessage::Error { id, payload } => {
+                            if id == this.id {
+                                match tx.send(Err(crate::Error::Server(payload))) {
+                                    Ok(_) => {}
+                                    Err(e) => tracing::error!("{:?}", e),
+                                }
                             }
                         }
+                        ServerMessage::ConnectionAck => {}
+                        ServerMessage::ConnectionKeepAlive => {}
                     }
-                    ServerMessage::ConnectionAck => {}
-                    ServerMessage::ConnectionKeepAlive => {}
                 }
             }
-        }.instrument(span));
+            .instrument(span),
+        );
 
         rx
     }
@@ -247,16 +252,20 @@ where
 {
     fn drop(&mut self) {
         tracing::trace!("Dropping WebSocket subscription (stopping)...");
-        self.tx.send(ClientMessage::Stop {
-            id: self.id.clone(),
-        }).unwrap_or(());
+        self.tx
+            .send(ClientMessage::Stop {
+                id: self.id.clone(),
+            })
+            .unwrap_or(());
     }
 }
 
 impl Drop for GraphQLWebSocket {
     fn drop(&mut self) {
         tracing::trace!("Dropping WebSocket connection (terminating)...");
-        self.tx.send(ClientMessage::ConnectionTerminate).unwrap_or(());
+        self.tx
+            .send(ClientMessage::ConnectionTerminate)
+            .unwrap_or(());
     }
 }
 
@@ -392,11 +401,9 @@ pub(crate) mod raw {
         S: AsyncRead + AsyncWrite + Unpin + Send,
     {
         pub fn stream(self) -> impl Stream<Item = Result<ServerMessage, MessageError>> + Send {
-            StreamExt::map(self.stream, |x| {
-                match x {
-                    Ok(msg) => ServerMessage::try_from(msg),
-                    Err(e) => Err(MessageError::WebSocket(e)),
-                }
+            StreamExt::map(self.stream, |x| match x {
+                Ok(msg) => ServerMessage::try_from(msg),
+                Err(e) => Err(MessageError::WebSocket(e)),
             })
         }
     }

@@ -19,11 +19,9 @@ use tokio::sync::Mutex;
 use tokio_tungstenite::tungstenite::{self, http::Request};
 use ws::GraphQLWebSocket;
 
-use std::pin::Pin;
 use std::collections::HashMap;
-use std::{
-    fmt::{self, Display},
-};
+use std::fmt::{self, Display};
+use std::pin::Pin;
 
 /// Trait for executing GraphQL operations (queries and mutations).
 #[async_trait]
@@ -45,10 +43,7 @@ where
     T: for<'de> Deserialize<'de> + Unpin + Send + 'static,
 {
     /// Subscribe to provided GraphQL subscription.
-    async fn subscribe(
-        &self,
-        request_body: RequestBody,
-    ) -> Result<SubscriptionStream<T>, Error>;
+    async fn subscribe(&self, request_body: RequestBody) -> Result<SubscriptionStream<T>, Error>;
 }
 
 /// HTTP(S) GraphQL client

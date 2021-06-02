@@ -4,4 +4,5 @@ members = [
     "crates/cli",
     "crates/codegen",
     "crates/parser",
+    "crates/support",
 ]

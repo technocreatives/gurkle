@@ -1,0 +1,6 @@
+subscription Counter {
+    counter {
+        count
+        countStr
+    }
+}

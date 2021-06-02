@@ -1,27 +1,38 @@
+use std::sync::atomic::{AtomicU8, Ordering};
 use std::{collections::HashMap, marker::PhantomData, pin::Pin, sync::Arc};
 
 use async_stream::stream;
 use futures_util::{stream::Stream, StreamExt};
 use raw::{ClientMessage, GraphQLReceiver, GraphQLSender, ServerMessage};
 use serde::{de::DeserializeOwned, Deserialize};
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::{mpsc, Mutex, RwLock};
+use tokio::task::JoinHandle;
+use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use tokio_tungstenite::{connect_async, tungstenite};
 use tracing::Instrument;
 
+use tungstenite::error::ProtocolError;
 pub use tungstenite::handshake::client::Request;
 pub use tungstenite::Error;
 
+use crate::ws::raw::MessageError;
 use crate::RequestBody;
 
+struct SubscriptionHandle {
+    channel: mpsc::UnboundedSender<ServerMessage>,
+    request: RequestBody,
+    liveness: AtomicU8,
+}
+
 pub(crate) struct GraphQLWebSocket {
-    tx: mpsc::UnboundedSender<ClientMessage>,
-    subscriptions: Arc<RwLock<HashMap<u64, mpsc::UnboundedSender<ServerMessage>>>>,
+    subscriptions: Arc<RwLock<HashMap<u64, SubscriptionHandle>>>,
+    connection: Arc<Mutex<GraphQLConnection>>,
     id_count: u64,
 }
 
 async fn process_server_message(
     msg: ServerMessage,
-    subscriptions: &RwLock<HashMap<u64, mpsc::UnboundedSender<ServerMessage>>>,
+    subscriptions: &RwLock<HashMap<u64, SubscriptionHandle>>,
 ) {
     if let Some(id) = msg.id() {
         let guard = subscriptions.read().await;
@@ -32,7 +43,7 @@ async fn process_server_message(
                 _ => false,
             };
 
-            tx.send(msg).is_err() || requires_cleanup
+            tx.channel.send(msg).is_err() || requires_cleanup
         } else {
             false
         };
@@ -47,25 +58,34 @@ async fn process_server_message(
         let guard = subscriptions.read().await;
 
         for tx in guard.values() {
-            let _ = tx.send(msg.clone());
+            let _ = tx.channel.send(msg.clone());
         }
     };
 }
 
-impl GraphQLWebSocket {
-    pub async fn connect(request: Request) -> Result<GraphQLWebSocket, tungstenite::Error> {
+struct GraphQLConnection {
+    tx: mpsc::UnboundedSender<ClientMessage>,
+    liveness: u8,
+}
+
+impl GraphQLConnection {
+    async fn new<R: IntoClientRequest + Unpin>(
+        request: R,
+        subscriptions: Arc<RwLock<HashMap<u64, SubscriptionHandle>>>,
+        liveness: u8,
+    ) -> Result<(Self, JoinHandle<bool>), tungstenite::Error> {
         let (stream, _) = match connect_async(request).await {
             Ok(v) => v,
             Err(e) => return Err(e),
         };
 
-        let subscriptions = Arc::new(RwLock::new(HashMap::new()));
-
         let (sink, stream) = StreamExt::split(stream);
+        let (tx_out, mut rx_out) = mpsc::unbounded_channel();
+
+        let span = tracing::trace_span!("receiver");
 
         let subs0 = subscriptions.clone();
-        let span = tracing::trace_span!("receiver");
-        tokio::spawn(
+        let should_reconnect = tokio::spawn(
             async move {
                 // let mut tx = tx_in0;
                 let rx = GraphQLReceiver { stream };
@@ -76,15 +96,27 @@ impl GraphQLWebSocket {
                     match msg {
                         Ok(ServerMessage::ConnectionKeepAlive) => {}
                         Ok(v) => process_server_message(v, &*subscriptions).await,
-                        Err(e) => tracing::error!("{:?}", e),
+                        Err(MessageError::WebSocket(tungstenite::Error::Protocol(
+                            ProtocolError::ResetWithoutClosingHandshake,
+                        ))) => {
+                            return true;
+                        }
+                        Err(MessageError::WebSocket(tungstenite::Error::ConnectionClosed)) => {
+                            // Not an error, websocket has closed normally.
+                            break;
+                        }
+                        Err(e) => {
+                            tracing::error!("Error handling next subscription message: {:?}", e)
+                        }
                     }
                 }
+                return false;
             }
             .instrument(span),
         );
 
-        let (tx_out, mut rx_out) = mpsc::unbounded_channel();
         let span = tracing::trace_span!("sender");
+        let subs0 = subscriptions.clone();
         tokio::spawn(
             async move {
                 let mut tx = GraphQLSender { sink };
@@ -93,21 +125,110 @@ impl GraphQLWebSocket {
                     .await
                     .unwrap();
 
+                // Iterate through existing subscriptions first, for reconnect situation
+                let subs = subs0.read().await;
+                for (id, handle) in subs.iter() {
+                    if liveness != handle.liveness.load(Ordering::SeqCst) {
+                        handle.liveness.store(liveness, Ordering::SeqCst);
+                    } else {
+                        continue;
+                    }
+
+                    match tx
+                        .send(ClientMessage::Start {
+                            id: id.to_string(),
+                            payload: handle.request.clone(),
+                        })
+                        .await
+                    {
+                        Ok(()) => {}
+                        Err(e) => tracing::error!("Error subscribing to id {}: {:?}", id, e),
+                    }
+                }
+
                 while let Some(msg) = rx_out.recv().await {
                     match tx.send(msg).await {
                         Ok(()) => {}
-                        Err(e) => tracing::error!("{:?}", e),
+                        Err(e) => tracing::error!("Error sending client message: {:?}", e),
                     }
                 }
             }
             .instrument(span),
         );
 
+        Ok((
+            GraphQLConnection {
+                tx: tx_out,
+                liveness,
+            },
+            should_reconnect,
+        ))
+    }
+}
+
+fn spawn_reconnecter<R: IntoClientRequest + Clone + Unpin + Send + Sync + 'static>(
+    should_reconnect: JoinHandle<bool>,
+    connection: Arc<Mutex<GraphQLConnection>>,
+    subscriptions: Arc<RwLock<HashMap<u64, SubscriptionHandle>>>,
+    request: R,
+    liveness: u8,
+) {
+    tokio::spawn(async move {
+        let should_reconnect = should_reconnect.await.unwrap();
+
+        if should_reconnect {
+            let liveness = liveness.wrapping_add(1);
+            let should_reconnect = loop {
+                let (new_connection, should_reconnect) =
+                    match GraphQLConnection::new(request.clone(), subscriptions.clone(), liveness)
+                        .await
+                    {
+                        Ok(x) => x,
+                        Err(e) => {
+                            eprintln!("Reconnect error: {:?}", e);
+                            tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+                            continue;
+                        }
+                    };
+                {
+                    let mut guard = connection.lock().await;
+                    *guard = new_connection;
+                }
+
+                break should_reconnect;
+            };
+
+            spawn_reconnecter(
+                should_reconnect,
+                connection,
+                subscriptions,
+                request,
+                liveness,
+            );
+        }
+    });
+}
+
+impl GraphQLWebSocket {
+    pub async fn connect<R: IntoClientRequest + Clone + Unpin + Send + Sync + 'static>(
+        request: R,
+    ) -> Result<GraphQLWebSocket, tungstenite::Error> {
+        let subscriptions = Arc::new(RwLock::new(HashMap::new()));
+        let (connection, should_reconnect) =
+            GraphQLConnection::new(request.clone(), subscriptions.clone(), 0).await?;
+        let connection = Arc::new(Mutex::new(connection));
+
+        spawn_reconnecter(
+            should_reconnect,
+            connection.clone(),
+            subscriptions.clone(),
+            request,
+            0,
+        );
+
         let socket = GraphQLWebSocket {
-            tx: tx_out,
             subscriptions,
-            // server_tx: tx_in,
-            // server_rx: rx_in,
+            connection,
             id_count: 0,
         };
 
@@ -124,20 +245,28 @@ impl GraphQLWebSocket {
         let (tx, rx) = mpsc::unbounded_channel();
         {
             let mut lock = self.subscriptions.write().await;
-            lock.insert(self.id_count, tx);
+            lock.insert(
+                self.id_count,
+                SubscriptionHandle {
+                    channel: tx,
+                    request: payload.clone(),
+                    liveness: AtomicU8::new(self.connection.lock().await.liveness),
+                },
+            );
         }
 
         tracing::trace!("Sending start message");
-        {
+        let tx = {
             let id = id.clone();
-            let payload = payload.clone();
-            self.tx.send(ClientMessage::Start { id, payload }).unwrap();
-        }
+            let guard = self.connection.lock().await;
+            guard.tx.send(ClientMessage::Start { id, payload }).unwrap();
+            guard.tx.clone()
+        };
         tracing::trace!("Sent!");
 
         // TODO: check for errors here, so we can exit early.
 
-        let sub = Subscription::<T>::new(id, self.tx.clone(), rx);
+        let sub = Subscription::<T>::new(id, tx, rx);
         Ok(sub)
     }
 }
@@ -190,7 +319,10 @@ where
                                     Ok(_) => {
                                         tracing::trace!("Send payload successful.");
                                     }
-                                    Err(e) => tracing::error!("{:?}", e),
+                                    Err(e) => tracing::error!(
+                                        "Error sending server message data: {:?}",
+                                        e
+                                    ),
                                 }
                             } else {
                                 tracing::error!(
@@ -207,7 +339,7 @@ where
                         ServerMessage::ConnectionError { payload } => {
                             match tx.send(Err(crate::Error::Server(payload))) {
                                 Ok(_) => {}
-                                Err(e) => tracing::error!("{:?}", e),
+                                Err(e) => tracing::error!("Connection error: {:?}", e),
                             }
                             return;
                         }
@@ -215,7 +347,7 @@ where
                             if id == this.id {
                                 match tx.send(Err(crate::Error::Server(payload))) {
                                     Ok(_) => {}
-                                    Err(e) => tracing::error!("{:?}", e),
+                                    Err(e) => tracing::error!("General error: {:?}", e),
                                 }
                             }
                         }
@@ -260,7 +392,7 @@ where
     }
 }
 
-impl Drop for GraphQLWebSocket {
+impl Drop for GraphQLConnection {
     fn drop(&mut self) {
         tracing::trace!("Dropping WebSocket connection (terminating)...");
         self.tx

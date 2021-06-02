@@ -1,6 +1,6 @@
 //! There is no usage documentation yet.
 
-#![deny(missing_docs)]
+#![warn(missing_docs)]
 #![deny(rust_2018_idioms)]
 
 /// WebSocket support
@@ -14,7 +14,7 @@ use reqwest::{
 };
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
-use tokio_tungstenite::tungstenite::{self, http::Request};
+use tokio_tungstenite::tungstenite::{self, client::IntoClientRequest, http::Request};
 use ws::GraphQLWebSocket;
 
 use std::collections::HashMap;
@@ -83,6 +83,24 @@ pub enum Error {
     Empty,
 }
 
+// The fact this struct has to exist annoys me so much.
+#[derive(Debug, Clone)]
+struct WsRequest {
+    url: Url,
+    headers: HashMap<&'static str, String>,
+}
+
+impl IntoClientRequest for WsRequest {
+    fn into_client_request(self) -> tungstenite::Result<tungstenite::handshake::client::Request> {
+        let mut req = Request::builder().uri(self.url.as_str());
+        for (k, v) in self.headers {
+            req = req.header(k, v);
+        }
+
+        Ok(req.body(()).unwrap())
+    }
+}
+
 impl WsClient {
     /// Create a new Gurkle HTTP client.
     pub async fn new(
@@ -90,17 +108,21 @@ impl WsClient {
         bearer_token: Option<String>,
         ws_protocols: Vec<String>,
     ) -> Result<Self, tungstenite::Error> {
-        let mut req = Request::builder().uri(endpoint.as_str());
+        let mut headers = HashMap::new();
 
         if let Some(bearer_token) = bearer_token {
-            req = req.header("Authorization", format!("Bearer {}", bearer_token));
+            headers.insert("Authorization", format!("Bearer {}", bearer_token));
         }
 
         if !ws_protocols.is_empty() {
-            req = req.header("Sec-WebSocket-Protocol", ws_protocols.join(", "))
+            headers.insert("Sec-WebSocket-Protocol", ws_protocols.join(", "));
         }
 
-        let ws = GraphQLWebSocket::connect(req.body(()).unwrap()).await?;
+        let req = WsRequest {
+            url: endpoint.clone(),
+            headers,
+        };
+        let ws = GraphQLWebSocket::connect(req).await?;
 
         Ok(Self { ws: Mutex::new(ws) })
     }

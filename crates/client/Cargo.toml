@@ -1,6 +1,6 @@
 [package]
 name = "gurkle"
-version = "0.2.3"
+version = "0.3.0"
 authors = [
     "Brendan Molloy <brendan@bbqsrc.net>",
     "Tom Houlé <tom@tomhoule.com>",

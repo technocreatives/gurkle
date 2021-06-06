@@ -1,6 +1,6 @@
 [package]
 name = "gurkle-parser"
-version = "0.2.1"
+version = "0.3.0"
 description = "A parser, AST and serializer for GraphQL schemas and query language."
 license = "MIT OR Apache-2.0"
 keywords = ["graphql", "parser"]

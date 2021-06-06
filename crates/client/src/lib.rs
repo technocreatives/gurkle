@@ -1,6 +1,6 @@
 //! There is no usage documentation yet.
 
-#![warn(missing_docs)]
+#![deny(missing_docs)]
 #![deny(rust_2018_idioms)]
 
 /// WebSocket support

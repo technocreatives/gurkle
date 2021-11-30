@@ -135,7 +135,9 @@ impl WsClient {
         let (tx, rx) = futures::channel::mpsc::unbounded();
 
         let subscription = {
+            tracing::trace!("Getting lock on WebSocket");
             let mut ws = self.ws.lock().await;
+            tracing::trace!("Got lock");
             ws.subscribe::<T>(request_body).await?
         };
 

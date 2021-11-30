@@ -36,7 +36,9 @@ async fn process_server_message(
     subscriptions: &RwLock<HashMap<u64, SubscriptionHandle>>,
 ) {
     if let Some(id) = msg.id() {
+        tracing::trace!("Getting subscription read lock for process_server_message");
         let guard = subscriptions.read().await;
+        tracing::trace!("Got lock");
 
         let requires_cleanup = if let Some(tx) = guard.get(&id) {
             let requires_cleanup = match &msg {
@@ -52,11 +54,15 @@ async fn process_server_message(
         drop(guard);
 
         if requires_cleanup {
+            tracing::trace!("Getting subscription write lock for cleanup");
             let mut guard = subscriptions.write().await;
+            tracing::trace!("Got lock");
             guard.remove(&id);
         }
     } else {
+        tracing::trace!("Getting subscription read lock for process_server_message");
         let guard = subscriptions.read().await;
+        tracing::trace!("Got lock");
 
         for tx in guard.values() {
             let _ = tx.channel.send(msg.clone());
@@ -148,7 +154,9 @@ impl GraphQLConnection {
                     .unwrap();
 
                 // Iterate through existing subscriptions first, for reconnect situation
+                tracing::trace!("Getting subscription read lock for reconnect situation");
                 let subs = subs0.read().await;
+                tracing::trace!("Got lock for reconnect situation");
                 for (id, handle) in subs.iter() {
                     if liveness != handle.liveness.load(Ordering::SeqCst) {
                         handle.liveness.store(liveness, Ordering::SeqCst);
@@ -167,6 +175,9 @@ impl GraphQLConnection {
                         Err(e) => tracing::error!("Error subscribing to id {}: {:?}", id, e),
                     }
                 }
+
+                // Drop the read lock
+                drop(subs);
 
                 loop {
                     tokio::select! {
@@ -321,7 +332,9 @@ impl GraphQLWebSocket {
 
         let (tx, rx) = mpsc::unbounded_channel();
         {
+            tracing::trace!("Getting subscriptions write lock");
             let mut lock = self.subscriptions.write().await;
+            tracing::trace!("Got sub write lock");
             lock.insert(
                 self.id_count,
                 SubscriptionHandle {

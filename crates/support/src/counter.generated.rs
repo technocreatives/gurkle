@@ -4,8 +4,7 @@ pub mod counter {
     #![allow(dead_code)]
     use std::result::Result;
     pub const OPERATION_NAME: &str = "Counter";
-    pub const QUERY: &str =
-        "subscription Counter {\n  counter {\n    count\n    countStr\n  }\n}\n";
+    pub const QUERY: &str = "subscription Counter {\n  integers\n}\n";
     #[allow(unused_imports)]
     use super::*;
     use serde::{Deserialize, Serialize};
@@ -21,13 +20,7 @@ pub mod counter {
     pub struct Variables;
     #[derive(Serialize, Deserialize, Debug, Clone)]
     pub struct Counter {
-        pub counter: CounterCounter,
-    }
-    #[derive(Serialize, Deserialize, Debug, Clone)]
-    pub struct CounterCounter {
-        pub count: Int,
-        #[serde(rename = "countStr")]
-        pub count_str: Option<String>,
+        pub integers: Int,
     }
     impl Variables {
         pub async fn subscribe(

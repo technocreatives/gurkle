@@ -1,12 +1,7 @@
-type Counter {
-  count: Int!
-  countStr: String
-}
-
 type Query {
-  hello: String!
+  example: Boolean!
 }
 
 type Subscription {
-  counter: Counter!
+  integers(step: Int! = 1): Int!
 }

@@ -6,8 +6,6 @@
 
 GraphQL client for Rust, with typed requests and responses, and subscriptions!
 
-A fork of [graphql_client](https://github.com/graphql-rust/graphql-client) and consumer of [graphql-ws-rs](https://github.com/technocreatives/graphql-ws-rs).
-
 ## Features
 
 - Precise types for query variables and responses.

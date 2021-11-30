@@ -1,7 +1,8 @@
-use std::sync::atomic::{AtomicU8, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::{collections::HashMap, marker::PhantomData, pin::Pin, sync::Arc};
 
 use async_stream::stream;
+use futures::SinkExt;
 use futures_util::{stream::Stream, StreamExt};
 use raw::{ClientMessage, GraphQLReceiver, GraphQLSender, ServerMessage};
 use serde::{de::DeserializeOwned, Deserialize};
@@ -73,6 +74,7 @@ impl GraphQLConnection {
         request: R,
         subscriptions: Arc<RwLock<HashMap<u64, SubscriptionHandle>>>,
         liveness: u8,
+        timeout_secs: u64,
     ) -> Result<(Self, JoinHandle<bool>), tungstenite::Error> {
         let (stream, _) = match connect_async(request).await {
             Ok(v) => v,
@@ -84,29 +86,49 @@ impl GraphQLConnection {
 
         let span = tracing::trace_span!("receiver");
 
+        let waiting_for_ka = Arc::new(AtomicBool::new(false));
+        let (die_tx, _die_rx) = tokio::sync::broadcast::channel(1);
+
         let subs0 = subscriptions.clone();
+        let wfk0 = waiting_for_ka.clone();
+        let die_tx0 = die_tx.clone();
         let should_reconnect = tokio::spawn(
             async move {
-                // let mut tx = tx_in0;
                 let rx = GraphQLReceiver { stream };
                 let subscriptions = subs0;
 
                 let mut stream = rx.stream();
-                while let Some(msg) = stream.next().await {
-                    match msg {
-                        Ok(ServerMessage::ConnectionKeepAlive) => {}
-                        Ok(v) => process_server_message(v, &*subscriptions).await,
-                        Err(MessageError::WebSocket(tungstenite::Error::Protocol(
-                            ProtocolError::ResetWithoutClosingHandshake,
-                        ))) => {
+                loop {
+                    let mut die_rx = die_tx0.subscribe();
+                    tokio::select! {
+                        _ = die_rx.recv() => {
+                            tracing::error!("Connection did not receive PONG before timeout");
                             return true;
-                        }
-                        Err(MessageError::WebSocket(tungstenite::Error::ConnectionClosed)) => {
-                            // Not an error, websocket has closed normally.
-                            break;
-                        }
-                        Err(e) => {
-                            tracing::error!("Error handling next subscription message: {:?}", e)
+                        },
+                        msg = stream.next() => {
+                            let msg = match msg {
+                                Some(v) => v,
+                                None => break,
+                            };
+
+                            match msg {
+                                Ok(ServerMessage::ConnectionKeepAlive) => {
+                                    wfk0.store(false, Ordering::SeqCst);
+                                }
+                                Ok(v) => process_server_message(v, &*subscriptions).await,
+                                Err(MessageError::WebSocket(tungstenite::Error::Protocol(
+                                    ProtocolError::ResetWithoutClosingHandshake,
+                                ))) => {
+                                    return true;
+                                }
+                                Err(MessageError::WebSocket(tungstenite::Error::ConnectionClosed)) => {
+                                    // Not an error, websocket has closed normally.
+                                    break;
+                                }
+                                Err(e) => {
+                                    tracing::error!("Error handling next subscription message: {:?}", e)
+                                }
+                            }
                         }
                     }
                 }
@@ -146,10 +168,30 @@ impl GraphQLConnection {
                     }
                 }
 
-                while let Some(msg) = rx_out.recv().await {
-                    match tx.send(msg).await {
-                        Ok(()) => {}
-                        Err(e) => tracing::error!("Error sending client message: {:?}", e),
+                loop {
+                    tokio::select! {
+                        msg = rx_out.recv() => {
+                            if let Some(msg) = msg {
+                                match tx.send(msg).await {
+                                    Ok(()) => {}
+                                    Err(e) => tracing::error!("Error sending client message: {:?}", e),
+                                };
+                            } else {
+                                break;
+                            }
+                        }
+                        _ = tokio::time::sleep(tokio::time::Duration::from_secs(timeout_secs)) => {
+                            if waiting_for_ka.load(Ordering::SeqCst) {
+                                let _ignore = die_tx.send(());
+                                break;
+                            }
+                            tracing::debug!("Sending ping!");
+                            waiting_for_ka.store(true, Ordering::SeqCst);
+                            match SinkExt::send(&mut tx.sink, tungstenite::Message::Ping(vec![])).await {
+                                Ok(()) => {}
+                                Err(e) => tracing::error!("Error sending PING: {:?}", e)
+                            }
+                        }
                     }
                 }
             }
@@ -172,6 +214,7 @@ fn spawn_reconnecter<R: IntoClientRequest + Clone + Unpin + Send + Sync + 'stati
     subscriptions: Arc<RwLock<HashMap<u64, SubscriptionHandle>>>,
     request: R,
     liveness: u8,
+    timeout_secs: u64,
 ) {
     tokio::spawn(async move {
         let should_reconnect = should_reconnect.await.unwrap();
@@ -179,17 +222,21 @@ fn spawn_reconnecter<R: IntoClientRequest + Clone + Unpin + Send + Sync + 'stati
         if should_reconnect {
             let liveness = liveness.wrapping_add(1);
             let should_reconnect = loop {
-                let (new_connection, should_reconnect) =
-                    match GraphQLConnection::new(request.clone(), subscriptions.clone(), liveness)
-                        .await
-                    {
-                        Ok(x) => x,
-                        Err(e) => {
-                            eprintln!("Reconnect error: {:?}", e);
-                            tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
-                            continue;
-                        }
-                    };
+                let (new_connection, should_reconnect) = match GraphQLConnection::new(
+                    request.clone(),
+                    subscriptions.clone(),
+                    liveness,
+                    timeout_secs,
+                )
+                .await
+                {
+                    Ok(x) => x,
+                    Err(e) => {
+                        eprintln!("Reconnect error: {:?}", e);
+                        tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+                        continue;
+                    }
+                };
                 {
                     let mut guard = connection.lock().await;
                     *guard = new_connection;
@@ -204,18 +251,47 @@ fn spawn_reconnecter<R: IntoClientRequest + Clone + Unpin + Send + Sync + 'stati
                 subscriptions,
                 request,
                 liveness,
+                timeout_secs,
             );
         }
     });
 }
 
+#[derive(Debug, Clone)]
+/// Configuration for the GraphQL WebSocket.
+pub struct Config {
+    /// Connection timeout in seconds. This is how long between PING attempts.
+    timeout_secs: u64,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self { timeout_secs: 55 }
+    }
+}
+
 impl GraphQLWebSocket {
+    #[inline(always)]
     pub async fn connect<R: IntoClientRequest + Clone + Unpin + Send + Sync + 'static>(
         request: R,
     ) -> Result<GraphQLWebSocket, tungstenite::Error> {
+        Self::connect_with_config(request, &Default::default()).await
+    }
+
+    pub async fn connect_with_config<
+        R: IntoClientRequest + Clone + Unpin + Send + Sync + 'static,
+    >(
+        request: R,
+        config: &Config,
+    ) -> Result<GraphQLWebSocket, tungstenite::Error> {
         let subscriptions = Arc::new(RwLock::new(HashMap::new()));
-        let (connection, should_reconnect) =
-            GraphQLConnection::new(request.clone(), subscriptions.clone(), 0).await?;
+        let (connection, should_reconnect) = GraphQLConnection::new(
+            request.clone(),
+            subscriptions.clone(),
+            0,
+            config.timeout_secs,
+        )
+        .await?;
         let connection = Arc::new(Mutex::new(connection));
 
         spawn_reconnecter(
@@ -224,6 +300,7 @@ impl GraphQLWebSocket {
             subscriptions.clone(),
             request,
             0,
+            config.timeout_secs,
         );
 
         let socket = GraphQLWebSocket {
@@ -495,6 +572,7 @@ pub(crate) mod raw {
                 Message::Text(value) => {
                     serde_json::from_str(&value).map_err(|e| MessageError::Decoding(e))
                 }
+                Message::Pong(_) => Ok(ServerMessage::ConnectionKeepAlive),
                 _ => Err(MessageError::InvalidMessage(value)),
             }
         }
